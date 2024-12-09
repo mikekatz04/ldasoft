@@ -28,93 +28,75 @@
 #include "glass_ucb_waveform.h"
 
 
-int main(int argc, char *argv[])
-{
+// int main(int argc, char *argv[])
+// {
     
-    time_t start, stop;
-    start = time(NULL);
+//     time_t start, stop;
+//     start = time(NULL);
     
     
-    /* Allocate data structures */
-    struct Flags *flags = malloc(sizeof(struct Flags));
-    struct Orbit *orbit = malloc(sizeof(struct Orbit));
-    struct Data  *data  = malloc(sizeof(struct Data));
-    struct Chain *chain = malloc(sizeof(struct Chain));
+//     /* Allocate data structures */
+//     struct Flags *flags = malloc(sizeof(struct Flags));
+//     struct Orbit *orbit = malloc(sizeof(struct Orbit));
+//     struct Data  *data  = malloc(sizeof(struct Data));
+//     struct Chain *chain = malloc(sizeof(struct Chain));
     
-    parse_data_args(argc,argv,data,orbit,flags,chain);
-    parse_ucb_args(argc,argv,flags);
+//     parse_data_args(argc,argv,data,orbit,flags,chain);
+//     parse_ucb_args(argc,argv,flags);
     
-    /* Load spacecraft ephemerides */
-    switch(flags->orbit)
-    {
-        case 0:
-            initialize_analytic_orbit(orbit);
-            break;
-        case 1:
-            initialize_numeric_orbit(orbit);
-            break;
-        default:
-            fprintf(stderr,"unsupported orbit type\n");
-            return(1);
-            break;
-    }
+//     /* Load spacecraft ephemerides */
+//     switch(flags->orbit)
+//     {
+//         case 0:
+//             initialize_analytic_orbit(orbit);
+//             break;
+//         case 1:
+//             initialize_numeric_orbit(orbit);
+//             break;
+//         default:
+//             fprintf(stderr,"unsupported orbit type\n");
+//             return(1);
+//             break;
+//     }
     
-    /* Initialize data structures */
-    alloc_data(data, flags);
+//     /* Initialize data structures */
+//     alloc_data(data, flags);
     
-    fprintf(stdout,"\n==== SubtractDetectedSources ====\n");
+//     fprintf(stdout,"\n==== SubtractDetectedSources ====\n");
     
-    /* Get injection parameters */
-    double f0,dfdt,theta,phi,amp,iota,psi,phi0; //read from injection file
+//     /* Get injection parameters */
+//     double f0,dfdt,theta,phi,amp,iota,psi,phi0; //read from injection file
     
-    FILE *catalogFile = fopen(flags->injFile[0],"r");
-    if(!catalogFile)
-        fprintf(stderr,"Missing catalog file %s\n",flags->injFile[0]);
-    else
-        fprintf(stdout,"Subtracting binary catalog %s\n",flags->injFile[0]);
+//     FILE *catalogFile = fopen(flags->injFile[0],"r");
+//     if(!catalogFile)
+//         fprintf(stderr,"Missing catalog file %s\n",flags->injFile[0]);
+//     else
+//         fprintf(stdout,"Subtracting binary catalog %s\n",flags->injFile[0]);
     
-    /* Get Galaxy File */
-    ReadData(data,orbit,flags);
+//     /* Get Galaxy File */
+//     ReadData(data,orbit,flags);
     
-    //count sources in file
-    int N=0;
-    fprintf(stdout,"Counting sources in catalog file %s:\n",flags->injFile[0]);
-    while(!feof(catalogFile))
-    {
-        int check = fscanf(catalogFile,"%lg %lg %lg %lg %lg %lg %lg %lg",&f0,&dfdt,&amp,&phi,&theta,&iota,&psi,&phi0);
-        if(!check)
-        {
-            fprintf(stderr,"Error reading %s\n",flags->covFile);
-            exit(1);
-        }
+//     //count sources in file
+//     int N=0;
+//     fprintf(stdout,"Counting sources in catalog file %s:\n",flags->injFile[0]);
+//     while(!feof(catalogFile))
+//     {
+//         int check = fscanf(catalogFile,"%lg %lg %lg %lg %lg %lg %lg %lg",&f0,&dfdt,&amp,&phi,&theta,&iota,&psi,&phi0);
+//         if(!check)
+//         {
+//             fprintf(stderr,"Error reading %s\n",flags->covFile);
+//             exit(1);
+//         }
         
-        N++;
-    }
-    rewind(catalogFile);
-    N--;
+//         N++;
+//     }
+//     rewind(catalogFile);
+//     N--;
     
-    fprintf(stdout,"Found %i sources in %s\n",N,flags->injFile[0]);
-    
-    
-    fprintf(stdout,"Generating waveforms:\n");
+//     fprintf(stdout,"Found %i sources in %s\n",N,flags->injFile[0]);
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    for(int i=0; i<data->N; i++)
-    {
-        data->tdi->A[2*i]   = 0.0;// inj->tdi->A[2*n];
-        data->tdi->E[2*i]   = 0.0;//inj->tdi->E[2*n];
-        data->tdi->A[2*i+1] = 0.0;//inj->tdi->A[2*n+1];
-        data->tdi->E[2*i+1] = 0.0;//inj->tdi->E[2*n+1];
-    }
+//     fprintf(stdout,"Generating waveforms:\n");
     
     
     
@@ -126,94 +108,112 @@ int main(int argc, char *argv[])
     
     
     
+//     for(int i=0; i<data->N; i++)
+//     {
+//         data->tdi->A[2*i]   = 0.0;// inj->tdi->A[2*n];
+//         data->tdi->E[2*i]   = 0.0;//inj->tdi->E[2*n];
+//         data->tdi->A[2*i+1] = 0.0;//inj->tdi->A[2*n+1];
+//         data->tdi->E[2*i+1] = 0.0;//inj->tdi->E[2*n+1];
+//     }
     
-    for(int nn=0; nn<N; nn++)
-    {
-        if(N>100 && nn%(N/100)==0)printProgress( (double)nn / (double)N );
-        int check = fscanf(catalogFile,"%lg %lg %lg %lg %lg %lg %lg %lg",&f0,&dfdt,&amp,&phi,&theta,&iota,&psi,&phi0);
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+//     for(int nn=0; nn<N; nn++)
+//     {
+//         if(N>100 && nn%(N/100)==0)printProgress( (double)nn / (double)N );
+//         int check = fscanf(catalogFile,"%lg %lg %lg %lg %lg %lg %lg %lg",&f0,&dfdt,&amp,&phi,&theta,&iota,&psi,&phi0);
         
-        if(!check)
-        {
-            fprintf(stderr,"Error reading catalogFile\n");
-            exit(1);
-        }
+//         if(!check)
+//         {
+//             fprintf(stderr,"Error reading catalogFile\n");
+//             exit(1);
+//         }
         
-        //set bandwidth of data segment centered on injection
-        data->fmin = f0 - (data->N/2)/data->T;
-        data->fmax = f0 + (data->N/2)/data->T;
-        data->qmin = (int)(data->fmin*data->T);
-        data->qmax = data->qmin+data->N;
+//         //set bandwidth of data segment centered on injection
+//         data->fmin = f0 - (data->N/2)/data->T;
+//         data->fmax = f0 + (data->N/2)/data->T;
+//         data->qmin = (int)(data->fmin*data->T);
+//         data->qmax = data->qmin+data->N;
         
-        struct Source *inj = malloc(sizeof(struct Source));
-        alloc_source(inj, data->N, data->Nchannel);
+//         struct Source *inj = malloc(sizeof(struct Source));
+//         alloc_source(inj, data->N, data->Nchannel);
         
-        for(int n=0; n<2*data->N; n++)
-        {
-            inj->tdi->A[n] = 0.0;
-            inj->tdi->E[n] = 0.0;
-            inj->tdi->X[n] = 0.0;
-        }
+//         for(int n=0; n<2*data->N; n++)
+//         {
+//             inj->tdi->A[n] = 0.0;
+//             inj->tdi->E[n] = 0.0;
+//             inj->tdi->X[n] = 0.0;
+//         }
         
-        //map parameters to vector
-        inj->f0       = f0;
-        inj->dfdt     = dfdt;
-        inj->costheta = theta;
-        inj->phi      = phi;
-        inj->amp      = amp;
-        inj->cosi     = iota;
-        inj->phi0     = phi0;
-        inj->psi      = psi;
+//         //map parameters to vector
+//         inj->f0       = f0;
+//         inj->dfdt     = dfdt;
+//         inj->costheta = theta;
+//         inj->phi      = phi;
+//         inj->amp      = amp;
+//         inj->cosi     = iota;
+//         inj->phi0     = phi0;
+//         inj->psi      = psi;
         
-        map_params_to_array(inj, inj->params, data->T);
+//         map_params_to_array(inj, inj->params, data->T);
         
-        //Book-keeping of injection time-frequency volume
-        galactic_binary_alignment(orbit, data, inj);
+//         //Book-keeping of injection time-frequency volume
+//         galactic_binary_alignment(orbit, data, inj);
         
-        //Simulate gravitational wave signal
-        double t0 = data->t0;
-        galactic_binary(orbit, data->format, data->T, t0, inj->params, 8, inj->tdi->X, inj->tdi->Y, inj->tdi->Z, inj->tdi->A, inj->tdi->E, inj->BW, 2);
+//         //Simulate gravitational wave signal
+//         double t0 = data->t0;
+//         galactic_binary(orbit, data->format, data->T, t0, inj->params, 8, inj->tdi->X, inj->tdi->Y, inj->tdi->Z, inj->tdi->A, inj->tdi->E, inj->BW, 2);
         
         
-        if(inj->BW > data->N) printf("WARNING:  Bandwidth %i wider than N %i at f=%.2e\n",inj->BW,data->N,data->fmin);
+//         if(inj->BW > data->N) printf("WARNING:  Bandwidth %i wider than N %i at f=%.2e\n",inj->BW,data->N,data->fmin);
         
-        for(int n=0; n<inj->BW; n++)
-        {
-            int i = inj->qmin+n;
-            if(i>0 && i<data->N)
-            {
-                //        data->tdi->A[2*i]   -= inj->tdi->A[2*n];
-                //        data->tdi->E[2*i]   -= inj->tdi->E[2*n];
-                //        data->tdi->A[2*i+1] -= inj->tdi->A[2*n+1];
-                //        data->tdi->E[2*i+1] -= inj->tdi->E[2*n+1];
-                data->tdi->A[2*i]   += inj->tdi->A[2*n];
-                data->tdi->E[2*i]   += inj->tdi->E[2*n];
-                data->tdi->A[2*i+1] += inj->tdi->A[2*n+1];
-                data->tdi->E[2*i+1] += inj->tdi->E[2*n+1];
-            }
-        }
-        free_source(inj);
-    }
-    fprintf(stdout,"\nFinished subtracting galaxy catalog\n");
+//         for(int n=0; n<inj->BW; n++)
+//         {
+//             int i = inj->qmin+n;
+//             if(i>0 && i<data->N)
+//             {
+//                 //        data->tdi->A[2*i]   -= inj->tdi->A[2*n];
+//                 //        data->tdi->E[2*i]   -= inj->tdi->E[2*n];
+//                 //        data->tdi->A[2*i+1] -= inj->tdi->A[2*n+1];
+//                 //        data->tdi->E[2*i+1] -= inj->tdi->E[2*n+1];
+//                 data->tdi->A[2*i]   += inj->tdi->A[2*n];
+//                 data->tdi->E[2*i]   += inj->tdi->E[2*n];
+//                 data->tdi->A[2*i+1] += inj->tdi->A[2*n+1];
+//                 data->tdi->E[2*i+1] += inj->tdi->E[2*n+1];
+//             }
+//         }
+//         free_source(inj);
+//     }
+//     fprintf(stdout,"\nFinished subtracting galaxy catalog\n");
     
-    //print full galaxy and density file
-    FILE *galaxyFile  = fopen("galaxy_data_AE_clean.dat","w");
+//     //print full galaxy and density file
+//     FILE *galaxyFile  = fopen("galaxy_data_AE_clean.dat","w");
     
-    for(int n=0; n<data->N; n++)
-    {
-        double f = (double)n/data->T;
-        fprintf(galaxyFile,"%.12g ",f);
-        fprintf(galaxyFile,"%.12g %.12g ",data->tdi->A[2*n],data->tdi->A[2*n+1]);
-        fprintf(galaxyFile,"%.12g %.12g\n",data->tdi->E[2*n],data->tdi->E[2*n+1]);
-    }
-    fclose(galaxyFile);
+//     for(int n=0; n<data->N; n++)
+//     {
+//         double f = (double)n/data->T;
+//         fprintf(galaxyFile,"%.12g ",f);
+//         fprintf(galaxyFile,"%.12g %.12g ",data->tdi->A[2*n],data->tdi->A[2*n+1]);
+//         fprintf(galaxyFile,"%.12g %.12g\n",data->tdi->E[2*n],data->tdi->E[2*n+1]);
+//     }
+//     fclose(galaxyFile);
     
     
-    fprintf(stdout,"================================================\n\n");
+//     fprintf(stdout,"================================================\n\n");
     
-    //print total run time
-    stop = time(NULL);
+//     //print total run time
+//     stop = time(NULL);
     
-    printf(" ELAPSED TIME = %g second\n",(double)(stop-start));
+//     printf(" ELAPSED TIME = %g second\n",(double)(stop-start));
     
-    return 0;
-}
+//     return 0;
+// }

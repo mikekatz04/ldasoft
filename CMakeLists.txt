@@ -35,6 +35,12 @@ endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp -Wall -std=gnu99")
 
+set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -L/data/mkatz/miniconda3/envs/glass_mix_env/lib -L/usr/lib/x86_64-linux-gnu")
+# link_directories(/usr/lib/x86_64-linux-gnu)
+
+# add_executable(foo ${FOO_SRCS})
+# target_link_libraries(foo bar) # libbar.so is found in ${CMAKE_SOURCE_DIR}/lib
+
 # Set git version header file
 message(STATUS "Resolving GIT Version")
 
