@@ -24,6 +24,16 @@ void alloc_ucb_data(struct UCBData *ucb_data, int procID)
     ucb_data->catalog = malloc(sizeof(struct Catalog));
 }
 
+void dealloc_ucb_data(struct UCBData *ucb_data)
+{
+    free(ucb_data->flags);
+    free(ucb_data->orbit);
+    free(ucb_data->chain);
+    free(ucb_data->data);
+    free(ucb_data->prior);
+    free(ucb_data->catalog);
+}
+
 void setup_ucb_data(struct UCBData *ucb_data, struct TDI *tdi_full)
 {
     int procID     = ucb_data->procID;

@@ -193,8 +193,8 @@ void setup_mbh_data(struct MBHData *mbh_data, struct UCBData *ucb_data, struct T
     
     //allocate data matrix
     mbh_data->data->data = malloc(mbh_data->data->Nch*sizeof(double *));
-    mbh_data->data->SN = malloc(mbh_data->data->Nch*sizeof(double *));//double_matrix(dat->Nch,dat->N/2);
-    mbh_data->data->SM = malloc(mbh_data->data->Nch*sizeof(double *));//double_matrix(dat->Nch,dat->N/2);
+    mbh_data->data->SN = malloc(mbh_data->data->Nch*sizeof(double *));//mbh_double_matrix(dat->Nch,dat->N/2);
+    mbh_data->data->SM = malloc(mbh_data->data->Nch*sizeof(double *));//mbh_double_matrix(dat->Nch,dat->N/2);
 
     for(int n=0; n<mbh_data->data->Nch; n++)
     {
@@ -220,21 +220,21 @@ void setup_mbh_data(struct MBHData *mbh_data, struct UCBData *ucb_data, struct T
     
     /* allocate the memory needed for the MBH update() function */
     mbh_data->NH = 1000;
-    mbh_data->heat = double_vector(mbh_data->NC);
-    mbh_data->logLx = double_vector(mbh_data->NC);
-    mbh_data->paramx = double_matrix(mbh_data->NC,NParams);
-    mbh_data->paramy = double_matrix(mbh_data->NC,NParams);
-    mbh_data->history = double_tensor(mbh_data->NC,mbh_data->NH,NParams);
-    mbh_data->ejump = double_matrix(mbh_data->NC,NParams);
-    mbh_data->Fisher = double_tensor(mbh_data->NC,NParams,NParams);
-    mbh_data->evec = double_tensor(mbh_data->NC,NParams,NParams);
-    mbh_data->sx = double_matrix(mbh_data->NC,mbh_data->data->Nch);
-    mbh_data->sy = double_matrix(mbh_data->NC,mbh_data->data->Nch);
+    mbh_data->heat = mbh_double_vector(mbh_data->NC);
+    mbh_data->logLx = mbh_double_vector(mbh_data->NC);
+    mbh_data->paramx = mbh_double_matrix(mbh_data->NC,NParams);
+    mbh_data->paramy = mbh_double_matrix(mbh_data->NC,NParams);
+    mbh_data->history = mbh_double_tensor(mbh_data->NC,mbh_data->NH,NParams);
+    mbh_data->ejump = mbh_double_matrix(mbh_data->NC,NParams);
+    mbh_data->Fisher = mbh_double_tensor(mbh_data->NC,NParams,NParams);
+    mbh_data->evec = mbh_double_tensor(mbh_data->NC,NParams,NParams);
+    mbh_data->sx = mbh_double_matrix(mbh_data->NC,mbh_data->data->Nch);
+    mbh_data->sy = mbh_double_matrix(mbh_data->NC,mbh_data->data->Nch);
     mbh_data->max = (double*)malloc(sizeof(double)* (NParams));
     mbh_data->min = (double*)malloc(sizeof(double)* (NParams));
-    mbh_data->who = int_vector(mbh_data->NC);
-    mbh_data->av = int_matrix(5,mbh_data->NC);
-    mbh_data->cv = int_matrix(5,mbh_data->NC);
+    mbh_data->who = mbh_int_vector(mbh_data->NC);
+    mbh_data->av = mbh_int_matrix(5,mbh_data->NC);
+    mbh_data->cv = mbh_int_matrix(5,mbh_data->NC);
     
     for (int i=0; i< mbh_data->NC; i++) mbh_data->who[i] = i;
 

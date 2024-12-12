@@ -1,7 +1,10 @@
+from __future__ import annotations
 from dataclasses import dataclass
+from typing import List
 
-@dataclass
+
 class GlassSettings:
+    verbose : int = 1
     NINJ        : int =1
     fixSky      : int =0
     fixFreq     : int =0
@@ -19,27 +22,27 @@ class GlassSettings:
     match       : int =0
     DMAX        : int =10
 
+
     #Set defaults
-    rj          = 1
-    help        = 0
-    calibration = 0
-    verbose     = 0
-    quiet       = 0
-    simNoise    = 0
-    confNoise   = 0
-    burnin      = 1
-    debug       = 0
-    strainData  = 0
-    hdf5Data    = 0
-    psd         = 0
-    orbit       = 0
-    prior       = 0
-    resume      = 0
-    NMCMC       = 10000
-    NBURN       = 10000
-    threads     = 4  # omp_get_max_threads()
-    runDir = "./"
-    set_fmax_flag: int  = 0 #flag watching for if fmax is set by CLI
+    rj          : int = 1
+    help        : int = 0
+    calibration : int = 0
+    quiet       : int = 0
+    simNoise    : int = 0
+    confNoise   : int = 0
+    burnin      : int = 1
+    debug       : int = 0
+    strainData  : int = 0
+    hdf5Data    : int = 0
+    psd         : int = 0
+    orbit       : int = 0
+    prior       : int = 0
+    resume      : int = 0
+    NMCMC       : int = 10000
+    NBURN       : int = 10000
+    threads     : int = 1  # omp_get_max_threads()
+    runDir : str = "./"
+    # set_fmax_flag: int  = 0 #flag watching for if fmax is set by CLI
     fmin: float = 1e-4  # Hz
     qpad : int = 0
     # Simulated data building blocks */
@@ -48,19 +51,19 @@ class GlassSettings:
     no_vgb: int = 0
     no_noise : int = 0
 
-    runDir = "./"      #!<store `DIRECTORY` to serve as top level directory for output files.
-    vbFile = "vb_file_test.dat"       #!<store `FILENAME` of list of known binaries `vb_mcmc`
-    ucbGridFile = "ucb_file_test.dat"  #!<`[--ucb-grid=FILENAME]` frequency grid for multiband UCB analysis
-    injFile = ["/data/mkatz/LISAanalysistools/ldasoft/ucb/etc/sources/precision/PrecisionSource_0.txt"]                 #!<`[--inj=FILENAME]`: list of injection files. Can support up to `NINJ=10` separate injections.
-    noiseFile = "noise_test.dat"    #!<file containing reconstructed noise model for `gb_catalog` to compute SNRs against.
-    cdfFile = "cdf_test.dat"      #!<store `FILENAME` of input chain file from Flags::update.
-    gmmFile = "gmm_file_test.dat"      #!<store `FILENAME` of input gmm file from Flags::update.
-    covFile = "cov_file_test.dat"      #!<store `FILENAME` of input covariance matrix file from Flags::updateCov.
-    matchInfile1 = "match1_file_test.dat" #!<input waveform \f$A\f$ for computing match \f$(h_A|h_B)\f$
-    matchInfile2 = "match2_file_test.dat" #!<input waveform \f$B\f$ for computing match \f$(h_A|h_B)\f$
-    pdfFile = "pdf_file_test.dat"     #!<store `FILENAME` of input priors for Flags:knownSource.
-    psdFile = "psd_file_test.dat"      #!<store `FILENAME` of input psd file from Flags::psd.
-    catalogFile = "cat_file_test.dat"  #!<store `FILENAME` containing previously identified detections from Flags::catalog for cleaning padding regions
+    runDir : str = "./"      #!<store `DIRECTORY` to serve as top level directory for output files.
+    vbFile : str = "vb_file_test.dat"       #!<store `FILENAME` of list of known binaries `vb_mcmc`
+    ucbGridFile : str = "ucb_file_test.dat"  #!<`[--ucb-grid=FILENAME]` frequency grid for multiband UCB analysis
+    injFile : list = ["/data/mkatz/LISAanalysistools/ldasoft/ucb/etc/sources/precision/PrecisionSource_0.txt"]                 #!<`[--inj=FILENAME]`: list of injection files. Can support up to `NINJ=10` separate injections.
+    noiseFile : str = "noise_test.dat"    #!<file containing reconstructed noise model for `gb_catalog` to compute SNRs against.
+    cdfFile : str = "cdf_test.dat"      #!<store `FILENAME` of input chain file from Flags::update.
+    gmmFile : str = "gmm_file_test.dat"      #!<store `FILENAME` of input gmm file from Flags::update.
+    covFile : str = "cov_file_test.dat"      #!<store `FILENAME` of input covariance matrix file from Flags::updateCov.
+    matchInfile1 : str = "match1_file_test.dat" #!<input waveform \f$A\f$ for computing match \f$(h_A|h_B)\f$
+    matchInfile2 : str = "match2_file_test.dat" #!<input waveform \f$B\f$ for computing match \f$(h_A|h_B)\f$
+    pdfFile : str = "pdf_file_test.dat"     #!<store `FILENAME` of input priors for Flags:knownSource.
+    psdFile : str = "psd_file_test.dat"      #!<store `FILENAME` of input psd file from Flags::psd.
+    catalogFile : str = "cat_file_test.dat"  #!<store `FILENAME` containing previously identified detections from Flags::catalog for cleaning padding regions
 
     format      : str = "sangria"
     dataDir     : str = "./data_store"
@@ -79,3 +82,10 @@ class GlassSettings:
     downsample : int = 2
     fileName : str = "temp_test_fileName.dat"
   
+    def __init__(self, **kwargs):
+
+        for key, value in kwargs.items():
+            if not hasattr(self, key):
+                raise KeyError(f"GlassSettings class does not have the argument {key}.")
+
+            setattr(self, key, value)

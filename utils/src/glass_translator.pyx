@@ -86,10 +86,10 @@ cdef extern from "mixglass.h":
 
 cdef extern from "mixglass.h":
     void glass_wrapper(Translator *translator);
+    void setup_ucb_global_fit(Translator *translator, int procID, int procID_min, int procID_max);
+    void clear_ucb_global_fit(Translator *translator, int procID, int procID_min, int procID_max);
 
-def run_glass_ucb_mcmc(glass_settings):
-
-    cdef Translator translator;
+cdef void setup_translator(Translator *translator, glass_settings):
 
     translator.verbose = glass_settings.verbose;    #!<`[--verbose; default=FALSE]`: increases file output (all chains, less downsampling, etc.)
     translator.quiet = glass_settings.quiet;      #!<`[--quiet; default=FALSE]`: decreases file output (less diagnostic data, only what is needed for post processing/recovery)
@@ -167,6 +167,14 @@ def run_glass_ucb_mcmc(glass_settings):
     translator.NC = glass_settings.NC
 
     assert len(glass_settings.injFile) == translator.NINJ
+    return 
+
+def run_glass_ucb_mcmc(glass_settings):
+    
+    cdef Translator translator;
+    setup_translator(&translator, glass_settings)
+    
+    assert len(glass_settings.injFile) == translator.NINJ
 
     translator.injFile = <char**>malloc(translator.DMAX *sizeof(char *));
     for n in range(translator.DMAX):
@@ -175,12 +183,43 @@ def run_glass_ucb_mcmc(glass_settings):
     for n in range(translator.NINJ):
         strcpy(translator.injFile[n], glass_settings.injFile[n].encode('utf-8'))
     
+    glass_wrapper(&translator)
+
     printf(translator.injFile[0])
     printf(translator.catalogFile)
-    glass_wrapper(&translator)
 
     for n in range(translator.DMAX):
         free(translator.injFile[n]);
     free(translator.injFile);
 
-    return 
+    
+cdef class GlassGlobalFitTranslate:
+    cdef Translator *translator;
+    cdef int procID, procID_min, procID_max;
+
+    def __cinit__(self, procID, procID_min, procID_max):
+        self.translator = <Translator*>malloc(sizeof(Translator));
+        self.procID, self.procID_min, self.procID_max = procID, procID_min, procID_max
+
+    def setup_ucb_global_fit(self, glass_settings):
+
+        setup_translator(self.translator, glass_settings)
+        
+        self.translator.injFile = <char**>malloc(self.translator.DMAX *sizeof(char *));
+        for n in range(self.translator.DMAX):
+            self.translator.injFile[n] = <char*>malloc(1024*sizeof(char));
+
+        for n in range(self.translator.NINJ):
+            strcpy(self.translator.injFile[n], glass_settings.injFile[n].encode('utf-8'))
+        
+        setup_ucb_global_fit(self.translator, self.procID, self.procID_min, self.procID_max);
+
+        for n in range(self.translator.DMAX):
+            free(self.translator.injFile[n]);
+        free(self.translator.injFile);
+
+    def __dealloc__(self):
+        if self.translator: 
+            clear_ucb_global_fit(self.translator, self.procID, self.procID_min, self.procID_max);
+            print("freeing translator")
+            free(self.translator)

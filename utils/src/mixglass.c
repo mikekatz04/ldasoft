@@ -3,6 +3,8 @@
 #include "stdlib.h"
 #include "glass_data.h"
 #include "ucb_mcmc_base.h"
+#include "glass_ucb_wrapper.h"
+#include "globalfit.h"
 
 // #include "ucb_mcmc_base.h"
 
@@ -53,7 +55,7 @@ void parse_from_python(struct Translator *translator, struct Data *data, struct 
      optional support for 'frequency' a la LDCs
      */
     memcpy(&data->format, &translator->format, 16 * sizeof(char));
-        
+
     data->T        = translator->T; /* one "mldc years" at 15s sampling */
     data->t0       = translator->t0; /* start time of data segment in seconds */
     data->sqT      = sqrt(data->T);
@@ -71,7 +73,6 @@ void parse_from_python(struct Translator *translator, struct Data *data, struct 
     if(chain->NC % flags->threads !=0){
         chain->NC += flags->threads - (chain->NC % flags->threads);
     }
-    
     //override size of data if fmax was requested
     if(set_fmax_flag) data->N = (int)floor((data->fmax - data->fmin)*data->T);
     
@@ -90,8 +91,7 @@ void parse_from_python(struct Translator *translator, struct Data *data, struct 
     {
         data->sum_log_f += log(data->fmin + (double)n/data->T);
     }
-
-
+    
     ///// UCB PARSING
 
     //Set defaults
@@ -111,14 +111,14 @@ void parse_from_python(struct Translator *translator, struct Data *data, struct 
     flags->updateCov   = translator->updateCov;
     flags->match       = translator->match;
     flags->DMAX        = translator->DMAX;
+
     memcpy(&flags->matchInfile1, &translator->matchInfile1, MAXSTRINGSIZE * sizeof(char));
     memcpy(&flags->matchInfile2, &translator->matchInfile2, MAXSTRINGSIZE * sizeof(char));
     
     flags->injFile = (char**)malloc(flags->DMAX *sizeof(char *));
     for(int n=0; n<flags->DMAX ; n++) flags->injFile[n] = (char*)malloc(1024*sizeof(char));
-
+    
     for (int n=0; n<flags->NINJ; n++) memcpy(flags->injFile[n], translator->injFile[n], MAXSTRINGSIZE * sizeof(char));
-
 }
 
 void glass_wrapper(struct Translator *translator)
@@ -144,4 +144,52 @@ void glass_wrapper(struct Translator *translator)
     free(chain);
     free(data);
     free(inj);
+}
+
+
+void clear_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max)
+{
+    dealloc_gf_data(translator->global_fit);
+    dealloc_ucb_data(translator->ucb_data);
+
+    free(translator->global_fit);
+    free(translator->ucb_data);
+}
+
+
+void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max)
+{
+    printf("Enter\n");
+    /* Allocate structures to hold global model */
+    translator->global_fit = malloc(sizeof(struct GlobalFitData));
+    translator->ucb_data   = malloc(sizeof(struct UCBData));
+    
+    struct GlobalFitData *global_fit = translator->global_fit;
+    struct UCBData       *ucb_data = translator->ucb_data;
+    
+    alloc_gf_data(global_fit);
+
+    /* Allocate UCB data structures */
+    alloc_ucb_data(ucb_data, procID);
+  
+    /* Aliases to ucb structures */
+    struct Flags *flags = ucb_data->flags;
+    struct Orbit *orbit = ucb_data->orbit;
+    struct Chain *chain = ucb_data->chain;
+    struct Data  *data  = ucb_data->data;
+
+    /* all processes parse command line and set defaults/flags */
+    parse_from_python(translator, data, orbit, flags, chain);
+    //if(procID==0 && flags->help) print_usage();
+        
+    return;
+      
+    /* Store size of each model component */
+    global_fit->nUCB = procID_max - procID_min + 1; //room for noise model
+
+    /* Assign processes to models */
+    
+    //ucb model takes remaining nodes
+    ucb_data->procID_min = procID_min;
+    ucb_data->procID_max = procID_max;
 }

@@ -15,6 +15,8 @@
 #ifndef MBHWrapper_h
 #define MBHWrapper_h
 
+#include "Declarations.h"
+
 struct MBHData
 {
     int mcmc_step;

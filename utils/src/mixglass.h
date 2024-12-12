@@ -87,11 +87,13 @@ struct Translator{
     int downsample; //!<Downsample factor for getting the desired number of samples
     char fileName[MAXSTRINGSIZE]; //!<place holder for filnames
   
-    
+    struct GlobalFitData *global_fit;
+    struct UCBData *ucb_data;
 };
 
 // inline void run_ucb_mcmc(struct Data *data, struct Orbit *orbit, struct Flags *flags, struct Chain *chain, struct Source *inj);
 void glass_wrapper(struct Translator *translator);
-
+void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max);
+void clear_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max);
 
 #endif // mix_glass_h

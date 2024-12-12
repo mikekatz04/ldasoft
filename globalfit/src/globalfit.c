@@ -15,33 +15,16 @@
 #include <glass_utils.h>
 #include <glass_ucb.h>
 #include <glass_noise.h>
-#include <mbh.h>
+// #include <mbh.h>
 
 #include "glass_ucb_wrapper.h"
 #include "glass_vgb_wrapper.h"
 #include "glass_mbh_wrapper.h"
 #include "glass_noise_wrapper.h"
+#include "globalfit.h"
 
-struct GlobalFitData
-{
-    int nUCB;
-    int nMBH;
-    int nVGB;
-    
-    struct TDI *tdi_full;
-    struct TDI *tdi_store;
-    struct TDI *tdi_ucb;
-    struct TDI *tdi_vgb;
-    struct TDI *tdi_mbh;
-    struct Noise *psd;
-    
-    double block_time;
-    double max_block_time;
-    
-    FILE *chainFile;
-};
 
-static void alloc_gf_data(struct GlobalFitData *global_fit)
+void alloc_gf_data(struct GlobalFitData *global_fit)
 {
     global_fit->tdi_full = malloc(sizeof(struct TDI));
     global_fit->tdi_store = malloc(sizeof(struct TDI));
@@ -51,7 +34,17 @@ static void alloc_gf_data(struct GlobalFitData *global_fit)
     global_fit->psd = malloc(sizeof(struct Noise));
 }
 
-static void setup_gf_data(struct GlobalFitData *global_fit)
+void dealloc_gf_data(struct GlobalFitData *global_fit)
+{
+    free(global_fit->tdi_full);
+    free(global_fit->tdi_store);
+    free(global_fit->tdi_vgb);
+    free(global_fit->tdi_ucb);
+    free(global_fit->tdi_mbh);
+    free(global_fit->psd);
+}
+
+void setup_gf_data(struct GlobalFitData *global_fit)
 {
     alloc_tdi(global_fit->tdi_store, global_fit->tdi_full->N, global_fit->tdi_full->Nchannel);
     alloc_tdi(global_fit->tdi_ucb, global_fit->tdi_full->N, global_fit->tdi_full->Nchannel);
@@ -65,7 +58,7 @@ static void setup_gf_data(struct GlobalFitData *global_fit)
     copy_tdi(global_fit->tdi_full, global_fit->tdi_store);
 }
 
-static void share_data(struct TDI *tdi_full, int root, int procID)
+void share_data(struct TDI *tdi_full, int root, int procID)
 {
     //first tell all processes how large the dataset is
     MPI_Bcast(&tdi_full->N, 1, MPI_INT, root, MPI_COMM_WORLD);
@@ -84,7 +77,7 @@ static void share_data(struct TDI *tdi_full, int root, int procID)
     
 }
 
-static void dump_data(struct Data *data, struct Flags *flags)
+void dump_data(struct Data *data, struct Flags *flags)
 {
     FILE *fptr;
     char filename[MAXSTRINGSIZE];
@@ -131,7 +124,7 @@ static void dump_data(struct Data *data, struct Flags *flags)
     fclose(fptr);
 }
 
-static void share_vgb_model(struct UCBData *ucb_data,
+void share_vgb_model(struct UCBData *ucb_data,
                                struct VGBData *vgb_data,
                                struct MBHData *mbh_data,
                                struct GlobalFitData *gf,
@@ -222,7 +215,7 @@ static void share_vgb_model(struct UCBData *ucb_data,
 
 }
 
-static void share_ucb_model(struct UCBData *ucb_data,
+void share_ucb_model(struct UCBData *ucb_data,
                                struct VGBData *vgb_data,
                                struct MBHData *mbh_data,
                                struct GlobalFitData *gf,
@@ -327,7 +320,7 @@ static void share_ucb_model(struct UCBData *ucb_data,
 
 }
 
-static void share_mbh_model(struct UCBData *ucb_data,
+void share_mbh_model(struct UCBData *ucb_data,
                             struct VGBData *vgb_data,
                             struct MBHData *mbh_data,
                             struct GlobalFitData *global_fit,
@@ -420,7 +413,7 @@ static void share_mbh_model(struct UCBData *ucb_data,
 
 }
 
-static void share_noise_model(struct NoiseData *noise_data, struct UCBData *ucb_data, struct VGBData *vgb_data, struct MBHData *mbh_data, struct GlobalFitData *global_fit, int root, int procID)
+void share_noise_model(struct NoiseData *noise_data, struct UCBData *ucb_data, struct VGBData *vgb_data, struct MBHData *mbh_data, struct GlobalFitData *global_fit, int root, int procID)
 {
     
     int ic = 0;
@@ -442,7 +435,7 @@ static void share_noise_model(struct NoiseData *noise_data, struct UCBData *ucb_
     MPI_Bcast(global_fit->psd->detC, global_fit->psd->N, MPI_DOUBLE, root, MPI_COMM_WORLD);
 }
 
-static void create_residual(struct GlobalFitData *global_fit, int UCB_Flag, int VGB_Flag, int MBH_Flag)
+void create_residual(struct GlobalFitData *global_fit, int UCB_Flag, int VGB_Flag, int MBH_Flag)
 {
     
     memcpy(global_fit->tdi_full->X, global_fit->tdi_store->X, 2*global_fit->tdi_full->N*sizeof(double));
@@ -478,7 +471,7 @@ static void create_residual(struct GlobalFitData *global_fit, int UCB_Flag, int 
 
 }
 
-static void print_data_state(struct NoiseData *noise_data, struct UCBData *ucb_data, struct VGBData *vgb_data, struct MBHData *mbh_data, int UCB_Flag, int VGB_Flag, int Noise_Flag, int MBH_Flag)
+void print_data_state(struct NoiseData *noise_data, struct UCBData *ucb_data, struct VGBData *vgb_data, struct MBHData *mbh_data, int UCB_Flag, int VGB_Flag, int Noise_Flag, int MBH_Flag)
 {
     if(Noise_Flag)
     {
@@ -550,7 +543,7 @@ static void print_data_state(struct NoiseData *noise_data, struct UCBData *ucb_d
     }
 }
 
-static void print_globalfit_state(struct NoiseData *noise_data, struct UCBData *ucb_data, struct VGBData *vgb_data, struct MBHData *mbh_data, int UCB_Flag, int VGB_Flag, int Noise_Flag, int MBH_Flag, FILE *fptr, int counter)
+void print_globalfit_state(struct NoiseData *noise_data, struct UCBData *ucb_data, struct VGBData *vgb_data, struct MBHData *mbh_data, int UCB_Flag, int VGB_Flag, int Noise_Flag, int MBH_Flag, FILE *fptr, int counter)
 {
     if(Noise_Flag)
         print_noise_state(noise_data, fptr, counter);
@@ -565,7 +558,7 @@ static void print_globalfit_state(struct NoiseData *noise_data, struct UCBData *
         print_mbh_state(mbh_data, fptr, counter);
 }
 
-static void blocked_gibbs_load_balancing(struct GlobalFitData *global_fit, int root, int procID, int Nproc)
+void blocked_gibbs_load_balancing(struct GlobalFitData *global_fit, int root, int procID, int Nproc)
 {
     
     double *block_time_vec=malloc(sizeof(double)*Nproc);
@@ -583,11 +576,37 @@ static void blocked_gibbs_load_balancing(struct GlobalFitData *global_fit, int r
     free(block_time_vec);
 }
 
-static void print_usage()
+void print_usage()
 {
     print_glass_usage();
     print_ucb_usage();
     exit(0);
+}
+
+void run_ucb_update(int procID, struct GlobalFitData *global_fit, struct UCBData *ucb_data, int UCB_Flag, int VGB_Flag, int MBH_Flag)
+{
+    create_residual(global_fit, UCB_Flag, VGB_Flag, MBH_Flag);
+    struct TDI *tdi_full = global_fit->tdi_full;
+    select_frequency_segment(ucb_data->data, tdi_full);
+    select_noise_segment(global_fit->psd, ucb_data->data, ucb_data->chain, ucb_data->model);
+    
+    int cycle = (int)round(global_fit->max_block_time/ucb_data->cpu_time);
+
+    exchange_ucb_source_params(ucb_data);
+    if(procID%2==0)
+    {
+        for(int i=0; i<((cycle > 1 ) ? cycle : 1); i++)
+            ucb_data->status = update_ucb_sampler(ucb_data);
+    }
+    
+    exchange_ucb_source_params(ucb_data);
+    if(procID%2!=0)
+    {
+        for(int i=0; i<((cycle > 1 ) ? cycle : 1); i++)
+            ucb_data->status = update_ucb_sampler(ucb_data);
+    }
+    
+    global_fit->block_time = ucb_data->cpu_time;
 }
 
 int main(int argc, char *argv[])
@@ -909,30 +928,7 @@ int main(int argc, char *argv[])
         /* ucb sampler gibbs update */
         if(UCB_Flag)
         {
-            create_residual(global_fit, UCB_Flag, VGB_Flag, MBH_Flag);
-            
-            select_frequency_segment(ucb_data->data, tdi_full);
-
-            select_noise_segment(global_fit->psd, ucb_data->data, ucb_data->chain, ucb_data->model);
-            
-
-            cycle = (int)round(global_fit->max_block_time/ucb_data->cpu_time);
-
-            exchange_ucb_source_params(ucb_data);
-            if(procID%2==0)
-            {
-                for(int i=0; i<((cycle > 1 ) ? cycle : 1); i++)
-                    ucb_data->status = update_ucb_sampler(ucb_data);
-            }
-            
-            exchange_ucb_source_params(ucb_data);
-            if(procID%2!=0)
-            {
-                for(int i=0; i<((cycle > 1 ) ? cycle : 1); i++)
-                    ucb_data->status = update_ucb_sampler(ucb_data);
-            }
-            
-            global_fit->block_time = ucb_data->cpu_time;
+            run_ucb_update(procID, global_fit, ucb_data, UCB_Flag, VGB_Flag, MBH_Flag);
         }
 
         /* ============================= */

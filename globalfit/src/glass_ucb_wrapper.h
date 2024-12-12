@@ -52,7 +52,7 @@ struct UCBData
  \brief Allocate memory for UCB structures
  */
 void alloc_ucb_data(struct UCBData *ucb_data, int procID);
-
+void dealloc_ucb_data(struct UCBData *ucb_data);
 /**
  \brief Initialize memory for GB structures
  
