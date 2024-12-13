@@ -36,7 +36,7 @@ void alloc_gf_data(struct GlobalFitData *global_fit)
 
 void dealloc_gf_data(struct GlobalFitData *global_fit)
 {
-    free(global_fit->tdi_full);
+    free_tdi(global_fit->tdi_full);
     free(global_fit->tdi_store);
     free(global_fit->tdi_vgb);
     free(global_fit->tdi_ucb);

@@ -292,6 +292,5 @@ void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_
     //initialize_ucb_sampler(ucb_data);
 
     // TODO: NEEEEEDDD TOO CHECK THIS
-    //free_tdi(tdi_full);
     printf("Finished ucb global fit setup\n");
 }
