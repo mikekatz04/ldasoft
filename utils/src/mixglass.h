@@ -63,6 +63,7 @@ struct Translator{
      
     int no_mbh;
     int no_ucb;
+    int no_ucb_hi;
     int no_vgb;
     int no_noise;
     

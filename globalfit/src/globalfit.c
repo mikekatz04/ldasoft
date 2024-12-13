@@ -576,7 +576,7 @@ void blocked_gibbs_load_balancing(struct GlobalFitData *global_fit, int root, in
     free(block_time_vec);
 }
 
-void print_usage()
+static void print_usage()
 {
     print_glass_usage();
     print_ucb_usage();

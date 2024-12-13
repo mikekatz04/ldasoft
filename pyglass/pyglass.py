@@ -46,10 +46,11 @@ class GlassSettings:
     fmin: float = 1e-4  # Hz
     qpad : int = 0
     # Simulated data building blocks */
-    no_mbh: int = 0
+    no_mbh: int = 1
     no_ucb: int = 0
-    no_vgb: int = 0
-    no_noise : int = 0
+    no_ucb_hi: int = 0
+    no_vgb: int = 1
+    no_noise : int = 1
 
     runDir : str = "./"      #!<store `DIRECTORY` to serve as top level directory for output files.
     vbFile : str = "vb_file_test.dat"       #!<store `FILENAME` of list of known binaries `vb_mcmc`
@@ -64,6 +65,7 @@ class GlassSettings:
     pdfFile : str = "pdf_file_test.dat"     #!<store `FILENAME` of input priors for Flags:knownSource.
     psdFile : str = "psd_file_test.dat"      #!<store `FILENAME` of input psd file from Flags::psd.
     catalogFile : str = "cat_file_test.dat"  #!<store `FILENAME` containing previously identified detections from Flags::catalog for cleaning padding regions
+    h5_data : str = ""
 
     format      : str = "sangria"
     dataDir     : str = "./data_store"
@@ -75,12 +77,12 @@ class GlassSettings:
 
     NC : int = 12
     
-    T: float = 36000000.0
+    T: float = 31000000.0
     t0: float = 0.0
     
     Nwave : int = 10
     downsample : int = 2
-    fileName : str = "temp_test_fileName.dat"
+    fileName : str = "../LDC2_sangria_training_v2.h5"
   
     def __init__(self, **kwargs):
 

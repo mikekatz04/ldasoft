@@ -435,6 +435,7 @@ void copy_calibration(struct Calibration *origin, struct Calibration *copy);
 void free_noise(struct Noise *noise);
 void free_chain(struct Chain *chain, struct Flags *flags);
 void free_calibration(struct Calibration *calibration);
+void free_data(struct Data *data);
 ///@}
 
 /**

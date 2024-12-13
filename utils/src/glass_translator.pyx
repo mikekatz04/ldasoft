@@ -130,7 +130,7 @@ cdef void setup_translator(Translator *translator, glass_settings):
 
     translator.no_mbh = glass_settings.no_mbh;
     translator.no_ucb = glass_settings.no_ucb;
-    # translator.no_ucb_hi = glass_settings.no_ucb_hi;
+    translator.no_ucb_hi = glass_settings.no_ucb_hi;
     translator.no_vgb = glass_settings.no_vgb;
     translator.no_noise = glass_settings.no_noise;
 

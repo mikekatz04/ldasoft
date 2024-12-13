@@ -176,7 +176,7 @@ void initialize_ucb_sampler(struct UCBData *ucb_data)
     
     /* Get noise spectrum for data segment */
     GetNoiseModel(data,orbit,flags);
-    
+
     /* Initialize parallel chain */
     if(flags->resume)
         initialize_chain(chain, flags, &data->cseed, "a");
@@ -189,11 +189,12 @@ void initialize_ucb_sampler(struct UCBData *ucb_data)
     
     /* Initialize MCMC proposals */
     initialize_proposal(orbit, data, prior, chain, flags, catalog, proposal, flags->DMAX);
-    
+    printf("CHECKCHECK\n");
+    return;
     /* Initialize UCB sampler state */
     struct Source *inj = NULL;
     initialize_ucb_state(data, orbit, flags, chain, proposal, model, trial, inj);
-        
+    
     /* Set sampler counter */
     ucb_data->mcmc_step = -flags->NBURN;
     

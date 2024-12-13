@@ -6,6 +6,8 @@
 #include "glass_ucb_wrapper.h"
 #include "globalfit.h"
 
+#include "mpi.h"
+
 // #include "ucb_mcmc_base.h"
 
 void parse_from_python(struct Translator *translator, struct Data *data, struct Orbit *orbit, struct Flags *flags, struct Chain *chain)
@@ -47,6 +49,7 @@ void parse_from_python(struct Translator *translator, struct Data *data, struct 
     /* Simulated data building blocks */
     flags->no_mbh = translator->no_mbh;
     flags->no_ucb = translator->no_ucb;
+    flags->no_ucb_hi = translator->no_ucb_hi;
     flags->no_vgb = translator->no_vgb;
     flags->no_noise = translator->no_noise;
     
@@ -55,7 +58,8 @@ void parse_from_python(struct Translator *translator, struct Data *data, struct 
      optional support for 'frequency' a la LDCs
      */
     memcpy(&data->format, &translator->format, 16 * sizeof(char));
-
+    memcpy(&data->fileName, &translator->fileName, MAXSTRINGSIZE * sizeof(char));
+    
     data->T        = translator->T; /* one "mldc years" at 15s sampling */
     data->t0       = translator->t0; /* start time of data segment in seconds */
     data->sqT      = sqrt(data->T);
@@ -149,17 +153,81 @@ void glass_wrapper(struct Translator *translator)
 
 void clear_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max)
 {
+    free_data(translator->ucb_data->data);
+
     dealloc_gf_data(translator->global_fit);
     dealloc_ucb_data(translator->ucb_data);
 
     free(translator->global_fit);
     free(translator->ucb_data);
+
+    int finalized;
+    // You also need this when your program is about to exit
+    MPI_Finalized(&finalized);
+    if (!finalized)
+    MPI_Finalize();
+}
+
+void my_bcast(void* data, int count, MPI_Datatype datatype, int root,
+              MPI_Comm communicator, int procID, int procID_min, int procID_max) {
+
+   int world_size = procID_max - procID_min + 1;
+
+   if (procID == root) {
+    // If we are the root process, send our data to everyone
+    int i, temp_procID;
+    for (i = 0; i < world_size; i++) {
+        temp_procID = procID_min + i;
+      if (temp_procID != root) {
+        MPI_Send(data, count, datatype, temp_procID, 0, communicator);
+      }
+    }
+  } else {
+    // If we are a receiver process, receive the data from the root
+    MPI_Recv(data, count, datatype, root, 0, communicator,
+             MPI_STATUS_IGNORE);
+  }
+}
+
+
+void share_data_mix(struct TDI *tdi_full, int root, int procID, int procID_min, int procID_max)
+{
+    //first tell all processes how large the dataset is
+    my_bcast(&tdi_full->N, 1, MPI_INT, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
+    //all but root process need to allocate memory for TDI structure
+    if(procID!=root) alloc_tdi(tdi_full, tdi_full->N, N_TDI_CHANNELS);
+    
+    //now broadcast contents of TDI structure
+    my_bcast(&tdi_full->delta, 1, MPI_DOUBLE, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
+    my_bcast(tdi_full->X, 2*tdi_full->N, MPI_DOUBLE, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
+    my_bcast(tdi_full->Y, 2*tdi_full->N, MPI_DOUBLE, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
+    my_bcast(tdi_full->Z, 2*tdi_full->N, MPI_DOUBLE, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
+    my_bcast(tdi_full->A, 2*tdi_full->N, MPI_DOUBLE, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
+    my_bcast(tdi_full->E, 2*tdi_full->N, MPI_DOUBLE, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
+    my_bcast(tdi_full->T, 2*tdi_full->N, MPI_DOUBLE, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
+    
 }
 
 
 void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max)
 {
-    printf("Enter\n");
+    int color = 0;
+
+    // Is this okay?
+    int root = procID_min;
+    int nprocs = procID_max - procID_min + 1;
+    int initialized;
+
+    MPI_Initialized(&initialized);
+    if (!initialized)
+    {
+        MPI_Init(NULL, NULL);
+    }
+
+    int procID_here, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &procID_here);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
     /* Allocate structures to hold global model */
     translator->global_fit = malloc(sizeof(struct GlobalFitData));
     translator->ucb_data   = malloc(sizeof(struct UCBData));
@@ -181,8 +249,6 @@ void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_
     /* all processes parse command line and set defaults/flags */
     parse_from_python(translator, data, orbit, flags, chain);
     //if(procID==0 && flags->help) print_usage();
-        
-    return;
       
     /* Store size of each model component */
     global_fit->nUCB = procID_max - procID_min + 1; //room for noise model
@@ -192,4 +258,40 @@ void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_
     //ucb model takes remaining nodes
     ucb_data->procID_min = procID_min;
     ucb_data->procID_max = procID_max;
+
+    setup_frequency_segment(ucb_data);
+    
+    /* Initialize ucb data structures */
+    alloc_data(data, flags);
+
+    /* allocate global fit noise model for all processes */
+    // I REMOVED noise_data-> here, is that okay????
+    alloc_noise(global_fit->psd, data->N, data->Nchannel);
+
+     /* root process reads data */
+    // confirm processes are the same
+    
+    if(procID==root) ReadHDF5(data,global_fit->tdi_full,flags);
+    // MPI_Barrier(MPI_COMM_WORLD);
+    
+    
+    /* alias of full TDI data */
+    struct TDI *tdi_full = global_fit->tdi_full;
+    
+    
+    /* broadcast data to all ucb processes and select frequency segment */
+    share_data_mix(tdi_full, root, procID, procID_min, procID_max);
+    
+    /* composite models are allocated to be the same size as tdi_full */
+    setup_gf_data(global_fit);
+
+    /* set up data for ucb model processes */
+    setup_ucb_data(ucb_data, tdi_full);
+    
+
+    //initialize_ucb_sampler(ucb_data);
+
+    // TODO: NEEEEEDDD TOO CHECK THIS
+    //free_tdi(tdi_full);
+    printf("Finished ucb global fit setup\n");
 }

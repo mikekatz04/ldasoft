@@ -242,6 +242,52 @@ void alloc_data(struct Data *data, struct Flags *flags)
 
 }
 
+
+void free_data(struct Data *data)
+{  
+    int i_re, i_im;
+
+    //Spectrum proposal
+    free(data->p);
+
+    for(int i=0; i<data->N; i++)
+    {
+        i_re = i*2;
+        i_im = i_re+1;
+        
+        for(int n=0; n<data->Nchannel; n++)
+        {
+            free(data->S_pow[i][n]);
+            free(data->h_pow[i][n]);
+            free(data->r_pow[i][n]);
+            free(data->h_rec[i_re][n]);
+            free(data->h_rec[i_im][n]);
+            free(data->h_res[i_re][n]);
+            free(data->h_res[i_im][n]);
+        }
+
+        free(data->S_pow[i]);
+        free(data->h_pow[i]);
+        free(data->r_pow[i]);
+        free(data->h_rec[i_re]);
+        free(data->h_rec[i_im]);
+        free(data->h_res[i_re]);
+        free(data->h_res[i_im]);
+    }
+
+    //reconstructed signal model
+    free(data->h_rec);
+    free(data->h_res);
+    free(data->r_pow);
+    free(data->h_pow);
+    free(data->S_pow);
+
+    free_tdi(data->tdi);
+    free_tdi(data->raw);
+    free_noise(data->noise);
+
+}
+
 void alloc_noise(struct Noise *noise, int NFFT, int Nchannel)
 {
     noise->N = NFFT;
@@ -446,10 +492,10 @@ void ReadHDF5(struct Data *data, struct TDI *tdi, struct Flags *flags)
 {
     /* LDASOFT-formatted structure for TDI data */
     struct TDI *tdi_td = malloc(sizeof(struct TDI));
-        
+    
+    printf("data->format: %s, %s\n", data->format, data->fileName);
     if(!strcmp(data->format,"frequency"))  LISA_Read_HDF5_LDC_RADLER_TDI(tdi_td, data->fileName);
     if(!strcmp(data->format,"sangria")) LISA_Read_HDF5_LDC_TDI(tdi_td, data->fileName, "/obs/tdi");
-    
     
     /* Select time segment of full data set */
     double start_time = data->t0;
@@ -469,7 +515,7 @@ void ReadHDF5(struct Data *data, struct TDI *tdi, struct Flags *flags)
     /* Allocate data->tdi structure for Fourier transform output */
     alloc_tdi(tdi, N/2, N_TDI_CHANNELS);
     tdi->delta = 1./Tobs;
-
+    
     /* Select requested time segment */
     int n_start = (int)floor(start_time/dt); // first sample of time segment
     
@@ -551,7 +597,7 @@ void ReadHDF5(struct Data *data, struct TDI *tdi, struct Flags *flags)
         }
         free_tdi(tdi_td_vgb);
     }
-    
+
     /* Tukey window time-domain TDI channels tdi_td */
     double alpha = (2.0*FILTER_LENGTH/Tobs);
     
@@ -721,7 +767,7 @@ void ReadHDF5(struct Data *data, struct TDI *tdi, struct Flags *flags)
     free(A);
     free(E);
     free(T);
-    
+    printf("ALL the way through read.");
 }
 
 void ReadASCII(struct Data *data, struct TDI *tdi)
