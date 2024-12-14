@@ -44,7 +44,7 @@ struct UCBData
     struct Model **model;
     struct Catalog *catalog;
     ///@}
-
+    bool noise_added;
     double cpu_time; //!<CPU time for single block update
 };
 

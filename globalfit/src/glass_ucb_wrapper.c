@@ -189,8 +189,6 @@ void initialize_ucb_sampler(struct UCBData *ucb_data)
     
     /* Initialize MCMC proposals */
     initialize_proposal(orbit, data, prior, chain, flags, catalog, proposal, flags->DMAX);
-    printf("CHECKCHECK\n");
-    return;
     /* Initialize UCB sampler state */
     struct Source *inj = NULL;
     initialize_ucb_state(data, orbit, flags, chain, proposal, model, trial, inj);
@@ -223,10 +221,11 @@ void initialize_ucb_sampler(struct UCBData *ucb_data)
         //if all of the files exist resume run from checkpointed state
         if(!file_error) restore_chain_state(orbit, data, model, chain, flags, &ucb_data->mcmc_step);
     }
-    
-    /* Store data segment in working directory */
-    print_data(data, data->tdi, flags);
 
+
+    /* Store data segment in working directory */
+    // print_data(data, data->tdi, flags);
+    
     /* Store post-processing script */
     print_ucb_catalog_script(flags, data, orbit);
 
@@ -324,7 +323,7 @@ int update_ucb_sampler(struct UCBData *ucb_data)
     
     if(ucb_data->mcmc_step < flags->NMCMC)
     {
-        print_chain_files(data, model, chain, flags, ucb_data->mcmc_step);
+        // print_chain_files(data, model, chain, flags, ucb_data->mcmc_step);
         
         //track maximum log Likelihood
         if(update_max_log_likelihood(model, chain, flags))
@@ -335,7 +334,7 @@ int update_ucb_sampler(struct UCBData *ucb_data)
         {
             
             //minimal screen output
-            print_sampler_state(ucb_data);
+            //print_sampler_state(ucb_data);
             
             //save chain state to resume sampler
             //save_chain_state(data, model, chain, flags, ucb_data->mcmc_step);
@@ -344,7 +343,7 @@ int update_ucb_sampler(struct UCBData *ucb_data)
         //dump waveforms to file, update avgLogL for thermodynamic integration
         if(ucb_data->mcmc_step>0 && ucb_data->mcmc_step%data->downsample==0)
         {
-            save_waveforms(data, model[chain->index[0]], ucb_data->mcmc_step/data->downsample);
+            //save_waveforms(data, model[chain->index[0]], ucb_data->mcmc_step/data->downsample);
             
             for(int ic=0; ic<NC; ic++)
             {

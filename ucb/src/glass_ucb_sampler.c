@@ -687,7 +687,7 @@ void initialize_ucb_state(struct Data *data, struct Orbit *orbit, struct Flags *
         
         //set noise model
         copy_noise(data->noise, model[ic]->noise);
-        
+
         //draw signal model
         for(int n=0; n<DMAX; n++)
         {

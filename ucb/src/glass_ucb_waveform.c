@@ -363,12 +363,12 @@ void galactic_binary_fisher(struct Orbit *orbit, struct Data *data, struct Sourc
             }
             if(source->fisher_matrix[i][j]!=source->fisher_matrix[i][j])
             {
-                fprintf(stderr,"WARNING: nan matrix element (line %d of file %s)\n",__LINE__,__FILE__);
-                fprintf(stderr, "fisher_matrix[%i][%i], Snf=[%g,%g]\n",i,j,noise->C[0][0][data->N/2],noise->C[1][1][data->N/2]);
-                for(int k=0; k<UCB_MODEL_NP; k++)
-                {
-                    fprintf(stderr,"source->params[%i]=%g\n",k,source->params[k]);
-                }
+                // fprintf(stderr,"WARNING: nan matrix element (line %d of file %s)\n",__LINE__,__FILE__);
+                // fprintf(stderr, "fisher_matrix[%i][%i], Snf=[%g,%g]\n",i,j,noise->C[0][0][data->N/2],noise->C[1][1][data->N/2]);
+                // for(int k=0; k<UCB_MODEL_NP; k++)
+                // {
+                //     fprintf(stderr,"source->params[%i]=%g\n",k,source->params[k]);
+                // }
                 source->fisher_matrix[i][j] = 10.0;
             }
             source->fisher_matrix[j][i] = source->fisher_matrix[i][j];

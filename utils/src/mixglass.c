@@ -153,6 +153,8 @@ void glass_wrapper(struct Translator *translator)
 
 void clear_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max)
 {
+    dealloc_ucb_state_python(translator->ucb_data->model, translator->ucb_data->trial, translator->ucb_data->flags, translator->ucb_data->chain);
+    
     free_data(translator->ucb_data->data);
 
     dealloc_gf_data(translator->global_fit);
@@ -207,6 +209,77 @@ void share_data_mix(struct TDI *tdi_full, int root, int procID, int procID_min, 
     my_bcast(tdi_full->T, 2*tdi_full->N, MPI_DOUBLE, root, MPI_COMM_WORLD, procID, procID_min, procID_max);
     
 }
+
+void dealloc_ucb_state_python(struct Model **model, struct Model **trial, struct Flags *flags, struct Chain *chain)
+{
+    int NC = chain->NC;
+    int DMAX = flags->DMAX;
+    for(int ic=0; ic<NC; ic++)
+    {   
+        free_model(trial[ic]);
+        free_model(model[ic]);     
+    }//end loop over chains
+    free(trial);
+    free(model);
+}
+
+
+// void init_chains(struct Data *data, struct Orbit *orbit, struct Flags *flags, struct Chain *chain, struct Proposal **proposal, struct Model **model, struct Model **trial)
+// {
+//     int NC = chain->NC;
+//     int DMAX = flags->DMAX;
+//     for(int ic=0; ic<NC; ic++)
+//     {
+//         //set noise model
+//         copy_noise(data->noise, model[ic]->noise);
+        
+//         //draw signal model
+//         for(int n=0; n<DMAX; n++)
+//         {
+//             //map parameters to vector
+//             model[ic]->source[n]->f0       = inj->f0;
+//             model[ic]->source[n]->dfdt     = inj->dfdt;
+//             model[ic]->source[n]->costheta = inj->costheta;
+//             model[ic]->source[n]->phi      = inj->phi;
+//             model[ic]->source[n]->amp      = inj->amp;
+//             model[ic]->source[n]->cosi     = inj->cosi;
+//             model[ic]->source[n]->phi0     = inj->phi0;
+//             model[ic]->source[n]->psi      = inj->psi;
+//             model[ic]->source[n]->d2fdt2   = inj->d2fdt2;
+//             map_params_to_array(model[ic]->source[n], model[ic]->source[n]->params, data->T);     
+//         }
+//         else
+//         {
+//             draw_from_uniform_prior(data, model[ic], model[ic]->source[n], proposal[0], model[ic]->source[n]->params , chain->r[ic]);
+//         }
+//         map_array_to_params(model[ic]->source[n], model[ic]->source[n]->params, data->T);
+//         galactic_binary_fisher(orbit, data, model[ic]->source[n], data->noise);
+//         model[ic]->source[n]->fisher_update_flag=0;
+             
+//         // Form master model & compute likelihood of starting position
+//         generate_noise_model(data, model[ic]);
+//         generate_signal_model(orbit, data, model[ic], -1);
+        
+//         //calibration error
+//         if(flags->calibration)
+//         {
+//             draw_calibration_parameters(data, model[ic], chain->r[ic]);
+//             generate_calibration_model(data, model[ic]);
+//             apply_calibration_model(data, model[ic]);
+//         }
+    
+//         if(!flags->prior)
+//         {
+//             model[ic]->logL     = gaussian_log_likelihood(data, model[ic]);
+//             model[ic]->logLnorm = gaussian_log_likelihood_constant_norm(data, model[ic]);
+//         }
+//         else model[ic]->logL = model[ic]->logLnorm = 0.0;
+        
+//         if(ic==0) chain->logLmax += model[ic]->logL + model[ic]->logLnorm;
+//     }
+// }
+
+
 
 
 void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max)
@@ -288,9 +361,25 @@ void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_
     /* set up data for ucb model processes */
     setup_ucb_data(ucb_data, tdi_full);
     
+    initialize_ucb_sampler(ucb_data);
 
-    //initialize_ucb_sampler(ucb_data);
-
+    copy_noise(ucb_data->data->noise,global_fit->psd);
     // TODO: NEEEEEDDD TOO CHECK THIS
+    printf("%e %e\n", global_fit->psd->C[0][0][100], global_fit->psd->C[1][1][200]);
     printf("Finished ucb global fit setup\n");
 }
+
+void run_glass_ucb_step(int step, struct Translator *translator, int procID, int procID_min, int procID_max)
+{
+
+    struct GlobalFitData *global_fit = translator->global_fit;
+    struct UCBData       *ucb_data = translator->ucb_data;
+    int VGB_Flag = 0;
+    int MBH_Flag = 0;
+    int UCB_Flag = 1;
+    run_ucb_update(procID, global_fit, ucb_data, UCB_Flag, VGB_Flag, MBH_Flag);
+
+    if (step % 100 == 0)
+        printf("step: %d, nmax: %d, neff: %d,  nlive: %d, logL: %e\n", step, ucb_data->model[0]->Nmax, ucb_data->model[0]->Neff, ucb_data->model[0]->Nlive, ucb_data->model[0]->logL);
+}
+    

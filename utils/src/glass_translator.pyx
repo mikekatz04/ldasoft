@@ -88,6 +88,7 @@ cdef extern from "mixglass.h":
     void glass_wrapper(Translator *translator);
     void setup_ucb_global_fit(Translator *translator, int procID, int procID_min, int procID_max);
     void clear_ucb_global_fit(Translator *translator, int procID, int procID_min, int procID_max);
+    void run_glass_ucb_step(int step, Translator *translator, int procID, int procID_min, int procID_max);
 
 cdef void setup_translator(Translator *translator, glass_settings):
 
@@ -217,6 +218,9 @@ cdef class GlassGlobalFitTranslate:
         for n in range(self.translator.DMAX):
             free(self.translator.injFile[n]);
         free(self.translator.injFile);
+
+    def run_glass_ucb_step(self, step : int):
+        run_glass_ucb_step(step, self.translator, self.procID, self.procID_min, self.procID_max);
 
     def __dealloc__(self):
         if self.translator: 
