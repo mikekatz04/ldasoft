@@ -730,6 +730,7 @@ void initialize_ucb_state(struct Data *data, struct Orbit *orbit, struct Flags *
         {
             model[ic]->logL     = gaussian_log_likelihood(data, model[ic]);
             model[ic]->logLnorm = gaussian_log_likelihood_constant_norm(data, model[ic]);
+            printf("%d %d %d %e %e\n", model[ic]->Nlive, model[ic]->Neff, model[ic]->Nmax, model[ic]->logL, model[ic]->logLnorm);
         }
         else model[ic]->logL = model[ic]->logLnorm = 0.0;
         

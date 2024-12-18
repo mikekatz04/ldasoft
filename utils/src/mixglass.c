@@ -382,4 +382,86 @@ void run_glass_ucb_step(int step, struct Translator *translator, int procID, int
     if (step % 100 == 0)
         printf("step: %d, nmax: %d, neff: %d,  nlive: %d, logL: %e\n", step, ucb_data->model[0]->Nmax, ucb_data->model[0]->Neff, ucb_data->model[0]->Nlive, ucb_data->model[0]->logL);
 }
+
+void get_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double* betas, int array_length)
+{
+    struct UCBData *ucb_data = translator->ucb_data;
+    struct Chain *chain = ucb_data->chain;
+    struct Model **model = ucb_data->model;
+    if (array_length != chain->NC * translator->DMAX)
+    {
+        fprintf(stderr, "array_length (%d) != chains * DMAX (%d) \n", chain->NC * translator->DMAX);
+        exit(-1);
+    }
+
+    int index_params = 0;
+    int model_index = 0;
+    double logPx = 0.0;
+    for (int i = 0; i < chain->NC; i += 1)
+    {
+        model_index = chain->index[i];
+        nleaves[i] = model[model_index]->Nlive;
+        betas[i] = 1. / chain->temperature[i];
+        logl[i] = model[model_index]->logL;
+        logPx = 0.0;  
+        for (int j = 0; j < translator->DMAX; j += 1)
+        {
+            //logPx += evaluate_prior(ucb_data->flags, ucb_data->data, model[i], model[i]->prior, model[i]->source[j]->params);
+            
+            for (int k = 0; k < UCB_MODEL_NP; k += 1)
+            {
+                index_params = (i * translator->DMAX + j) * UCB_MODEL_NP + k; 
+                
+                // if (j >= model[i]->Nlive)
+                // {
+                //     params[index_params] = 0.0;
+                // }
+                // else
+                // {
+                    params[index_params] = model[model_index]->source[j]->params[k];
+                // {
+                
+                // if ((i < 2) && (j < 2) && (k < 2))
+                //     printf("%d, %d, %d, %e\n", i, j, k, model[i]->source[j]->params[k]);
+            }
+        }
+        //logp[i] = logPx;
+    }
+}
+    
+
+void set_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length)
+{
+    struct UCBData *ucb_data = translator->ucb_data;
+    struct Chain *chain = ucb_data->chain;
+    struct Model **model = ucb_data->model;
+
+    if (array_length != chain->NC * translator->DMAX)
+    {
+        fprintf(stderr, "array_length (%d) != chains * DMAX (%d) \n", chain->NC * translator->DMAX);
+        exit(-1);
+    }
+
+    int index_params = 0;
+    int model_index = 0;
+    for (int i = 0; i < chain->NC; i += 1)
+    {
+        model_index = chain->index[i];
+        model[model_index]->Nlive = nleaves[i];
+        chain->temperature[i] = 1. / betas[i];
+        model[model_index]->logL = logl[i];
+        for (int j = 0; j < translator->DMAX; j += 1)
+        {
+            // if (j >= model[i]->Nlive) continue;
+            
+            for (int k = 0; k < UCB_MODEL_NP; k += 1)
+            {
+                index_params = (i * translator->DMAX + j) * UCB_MODEL_NP + k; 
+                model[model_index]->source[j]->params[k] = params[index_params];
+                // if ((i < 2) && (j < 2) && (k < 2))
+                //     printf("set %d, %d, %d, %e\n", i, j, k, model[i]->source[j]->params[k]);
+            }
+        }
+    }
+}
     

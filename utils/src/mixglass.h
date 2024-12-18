@@ -97,5 +97,7 @@ void glass_wrapper(struct Translator *translator);
 void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max);
 void clear_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max);
 void run_glass_ucb_step(int run_glass_ucb_step, struct Translator *translator, int procID, int procID_min, int procID_max);
+void get_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
+void set_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
 
 #endif // mix_glass_h

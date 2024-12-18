@@ -2,6 +2,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
 
+from pyglass.translateglass import GlassGlobalFitTranslate
+
+from eryn.moves import MHMove
+from eryn.state import State
+
+import numpy as np
 
 class GlassSettings:
     verbose : int = 1
@@ -16,11 +22,11 @@ class GlassSettings:
     detached    : int =0
     knownSource : int =0
     catalog     : int =0
-    grid        : int =0
+    grid        : int =1
     update      : int =0
     updateCov   : int =0
     match       : int =0
-    DMAX        : int =10
+    DMAX        : int =20
 
 
     #Set defaults
@@ -54,7 +60,7 @@ class GlassSettings:
 
     runDir : str = "./"      #!<store `DIRECTORY` to serve as top level directory for output files.
     vbFile : str = "vb_file_test.dat"       #!<store `FILENAME` of list of known binaries `vb_mcmc`
-    ucbGridFile : str = "ucb_file_test.dat"  #!<`[--ucb-grid=FILENAME]` frequency grid for multiband UCB analysis
+    ucbGridFile : str = "ucb_frequency_spacing.dat"  #!<`[--ucb-grid=FILENAME]` frequency grid for multiband UCB analysis
     injFile : list = ["/data/mkatz/LISAanalysistools/ldasoft/ucb/etc/sources/precision/PrecisionSource_0.txt"]                 #!<`[--inj=FILENAME]`: list of injection files. Can support up to `NINJ=10` separate injections.
     noiseFile : str = "noise_test.dat"    #!<file containing reconstructed noise model for `gb_catalog` to compute SNRs against.
     cdfFile : str = "cdf_test.dat"      #!<store `FILENAME` of input chain file from Flags::update.
@@ -91,3 +97,105 @@ class GlassSettings:
                 raise KeyError(f"GlassSettings class does not have the argument {key}.")
 
             setattr(self, key, value)
+
+
+class GlassUCBGlobalFitMove(MHMove):
+
+    def __init__(self, branch_name: str, glass_settings: GlassSettings, rank: int, min_ucb_rank: int, max_ucb_rank: int, *args, num_python_steps: int=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.branch_name = branch_name
+        self.glass_settings = glass_settings
+        self.gf = GlassGlobalFitTranslate(rank, min_ucb_rank, max_ucb_rank)
+        self.gf.setup_ucb_global_fit(glass_settings)
+        self.num_python_steps = num_python_steps
+
+    def get_glass_state_as_eryn_state(self) -> State:
+        (
+            params,
+            nleaves,
+            logl,
+            logp,
+            betas
+        ) = self.gf.get_current_glass_params()
+
+        ntemps, nleaves_max, ndim = params.shape
+        new_inds = self.convert_nleaves_to_inds(nleaves, nleaves_max)
+        
+        state = State(
+            {self.branch_name: params[:, None, :, :]},
+            inds={self.branch_name: new_inds[:, None, :]},
+            log_like=logl[:, None],
+            log_prior=logp[:, None],
+            betas=betas,
+            copy=True
+        )
+        return state
+
+    def convert_nleaves_to_inds(self, nleaves: np.ndarray, nleaves_max: int) -> np.ndarray:
+        ntemps = nleaves.shape[0]
+        new_inds = np.zeros((ntemps, nleaves_max), dtype=bool)
+        temp_map = np.tile(np.arange(nleaves_max), (ntemps, 1))
+        new_inds[temp_map < nleaves[:, None]] = True
+        return new_inds
+
+    def fill_state_with_glass_state(self, state: State):
+        (
+            params,
+            nleaves,
+            logl,
+            logp,
+            betas
+        ) = self.gf.get_current_glass_params()
+
+        ntemps, nleaves_max, ndim = params.shape
+        assert state.log_like.shape == (ntemps, 1)
+        assert state.log_prior.shape == (ntemps, 1)
+        assert state.betas.shape == (ntemps,)
+        assert (ntemps, 1, nleaves_max, ndim) == state.branches[self.branch_name].shape
+        
+        this_branch = state.branches[self.branch_name]
+        this_branch.coords[:] = params[:, None, :, :]
+        state.log_like[:] = logl[:, None]
+        state.log_prior[:] = logp[:, None]
+        state.betas[:] = betas[:]
+
+        # need to handle inds
+        new_inds = self.convert_nleaves_to_inds(nleaves, nleaves_max)
+        this_branch.inds[:] = new_inds[:, None, :]
+
+    def set_glass_state_with_state(self, state: State):
+
+        this_branch = state.branches[self.branch_name]
+        logl = state.log_like[:, 0].copy()
+        logp = state.log_prior[:, 0].copy()
+        betas = state.betas[:].copy()
+        ntemps, _, nleaves_max, ndim = this_branch.shape
+        # need to handle inds
+        # assumes they are not necesarrily comming in stacked against left side of array 
+        # there may be gaps where inds == False
+        # need to re-sort params order based on inds if gaps
+        current_inds = this_branch.inds[:, 0].copy()
+        nleaves = current_inds.sum(axis=-1).astype(np.int32).copy()
+        temp_map = np.tile(np.arange(nleaves_max), (ntemps, 1))
+
+        params = np.zeros((ntemps, nleaves_max, ndim))
+        # need to sort going into glass
+        # if no sorted is needed, it will return the input array
+        params[temp_map < nleaves[:, None]] = this_branch.coords[this_branch.inds]
+        params[temp_map >= nleaves[:, None]] = this_branch.coords[~this_branch.inds]
+        
+        self.gf.set_current_glass_params(params.flatten().copy(), nleaves.copy(), logl.copy(), logp.copy(), betas.copy())
+
+    def propose(self, model, state: State) -> state:
+        self.set_glass_state_with_state(state)
+        for step in range(self.num_python_steps):
+            self.gf.run_glass_ucb_step(step)
+        
+        new_state = State(state, copy=True)
+        self.fill_state_with_glass_state(new_state)
+        accepted = np.zeros_like(state.log_like, dtype=int)
+        self.temperature_control.swaps_accepted = np.zeros(state.betas.shape[0] - 1, dtype=int)
+        self.temperature_control.swaps_proposed = np.zeros(state.betas.shape[0] - 1, dtype=int)
+        print("nleaves:", state.branches["gb"].nleaves, "log like:", state.log_like[:, 0])
+        return new_state, accepted

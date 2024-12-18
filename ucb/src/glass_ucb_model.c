@@ -788,6 +788,8 @@ double gaussian_log_likelihood(struct Data *data, struct Model *model)
         residual->A[i] = data->tdi->A[i] - model->tdi->A[i];
         residual->E[i] = data->tdi->E[i] - model->tdi->E[i];
     }
+
+    //printf("OEWFEOWJ: %e %e\n", model->noise->C[0][0][0], model->noise->C[1][1][0]);
             
     switch(data->Nchannel)
     {

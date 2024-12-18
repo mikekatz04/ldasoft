@@ -222,8 +222,8 @@ void initialize_ucb_sampler(struct UCBData *ucb_data)
         if(!file_error) restore_chain_state(orbit, data, model, chain, flags, &ucb_data->mcmc_step);
     }
 
-
-    /* Store data segment in working directory */
+    // printf("%s\n", data->dataDir);
+    // /* Store data segment in working directory */
     // print_data(data, data->tdi, flags);
     
     /* Store post-processing script */

@@ -903,6 +903,11 @@ void GetNoiseModel(struct Data *data, struct Orbit *orbit, struct Flags *flags)
                     data->noise->C[0][0][n] += GBnoise_FF(data->T, orbit->fstar, f);
                     data->noise->C[1][1][n] += GBnoise_FF(data->T, orbit->fstar, f);
                 }
+                if isnan(data->noise->C[0][0][n])
+                    data->noise->C[0][0][n] = 1e10;
+                if isnan(data->noise->C[1][1][n])
+                    data->noise->C[1][1][n] = 1e10;
+                
             }
             else
             {
@@ -1090,6 +1095,7 @@ void print_data(struct Data *data, struct TDI *tdi, struct Flags *flags)
 {
     FILE *fptr;
     char power_filename[256];
+    printf("DATA DIR: %s\n",data->dataDir);
     sprintf(power_filename,"%s/power_data.dat",data->dataDir);
     fptr=fopen(power_filename,"w");
     

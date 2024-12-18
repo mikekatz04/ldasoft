@@ -89,6 +89,8 @@ cdef extern from "mixglass.h":
     void setup_ucb_global_fit(Translator *translator, int procID, int procID_min, int procID_max);
     void clear_ucb_global_fit(Translator *translator, int procID, int procID_min, int procID_max);
     void run_glass_ucb_step(int step, Translator *translator, int procID, int procID_min, int procID_max);
+    void get_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
+    void set_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
 
 cdef void setup_translator(Translator *translator, glass_settings):
 
@@ -197,13 +199,19 @@ def run_glass_ucb_mcmc(glass_settings):
 cdef class GlassGlobalFitTranslate:
     cdef Translator *translator;
     cdef int procID, procID_min, procID_max;
+    cdef int dmax;
+    cdef int nparams;
+    cdef int NC;
 
     def __cinit__(self, procID, procID_min, procID_max):
         self.translator = <Translator*>malloc(sizeof(Translator));
         self.procID, self.procID_min, self.procID_max = procID, procID_min, procID_max
-
+        self.nparams = 8;
+        
     def setup_ucb_global_fit(self, glass_settings):
 
+        self.dmax = glass_settings.DMAX
+        self.NC = glass_settings.NC
         setup_translator(self.translator, glass_settings)
         
         self.translator.injFile = <char**>malloc(self.translator.DMAX *sizeof(char *));
@@ -221,6 +229,36 @@ cdef class GlassGlobalFitTranslate:
 
     def run_glass_ucb_step(self, step : int):
         run_glass_ucb_step(step, self.translator, self.procID, self.procID_min, self.procID_max);
+
+    def get_current_glass_params(self):
+        cdef np.ndarray[np.float64_t, ndim=1] params = np.zeros((self.NC *self.dmax * self.nparams,), dtype=np.float64)
+        cdef np.ndarray[np.int32_t, ndim=1] nleaves = np.zeros((self.NC,), dtype=np.int32)
+        cdef np.ndarray[np.float64_t, ndim=1] logl = np.zeros((self.NC,), dtype=np.float64)
+        cdef np.ndarray[np.float64_t, ndim=1] logp = np.zeros((self.NC,), dtype=np.float64)
+        cdef np.ndarray[np.float64_t, ndim=1] betas = np.zeros((self.NC,), dtype=np.float64)
+        
+        get_current_glass_params(self.translator, &params[0], <int*>&nleaves[0], &logl[0], &logp[0], &betas[0], self.NC * self.dmax);
+
+        return (
+            params.reshape(self.NC, self.dmax, self.nparams),
+            nleaves,
+            logl,
+            logp,
+            betas
+        )
+
+    def set_current_glass_params(self,
+            np.ndarray[np.float64_t, ndim=1] params,
+            np.ndarray[np.int32_t, ndim=1] nleaves,
+            np.ndarray[np.float64_t, ndim=1] logl,
+            np.ndarray[np.float64_t, ndim=1] logp,
+            np.ndarray[np.float64_t, ndim=1] betas
+        ):
+
+        assert len(nleaves) == len(logl) == len(logp) == len(betas) == self.NC
+        assert len(params) == self.NC * self.dmax * self.nparams
+
+        set_current_glass_params(self.translator, &params[0], <int*>&nleaves[0], &logl[0], &logp[0], &betas[0], self.NC * self.dmax);
 
     def __dealloc__(self):
         if self.translator: 
