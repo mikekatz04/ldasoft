@@ -120,6 +120,8 @@ void initialize_chain(struct Chain *chain, struct Flags *flags, long *seed, cons
         gsl_rng_set (chain->r[ic], *seed);
         *seed = (long)gsl_rng_get(chain->r[ic]);
     }
+
+    printf("CHAINDIR:  %s\n", chain->chainDir);
     
     if(!flags->quiet)
     {

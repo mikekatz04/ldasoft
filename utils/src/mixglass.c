@@ -355,11 +355,16 @@ void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_
     /* broadcast data to all ucb processes and select frequency segment */
     share_data_mix(tdi_full, root, procID, procID_min, procID_max);
     
+    
     /* composite models are allocated to be the same size as tdi_full */
     setup_gf_data(global_fit);
 
     /* set up data for ucb model processes */
     setup_ucb_data(ucb_data, tdi_full);
+    
+    sprintf(ucb_data->data->dataDir,"%sdata",flags->runDir);
+    sprintf(ucb_data->chain->chainDir,"%schains",flags->runDir);
+    sprintf(ucb_data->chain->chkptDir,"%scheckpoint",flags->runDir);
     
     initialize_ucb_sampler(ucb_data);
 
@@ -464,4 +469,232 @@ void set_current_glass_params(struct Translator *translator, double *params, int
         }
     }
 }
+
+
+void get_current_cold_chain_glass_residual(struct Translator *translator, double *data_arr, int Nchannel, int N)
+{
+    struct UCBData *ucb_data = translator->ucb_data;
     
+    struct Chain *chain = ucb_data->chain;
+    struct Data *data = ucb_data->data;
+    
+    int N2 = data->N*2;
+    if (N != data->N)
+    {
+        fprintf(stderr,"Input and output lengths are different. N in: %d ; N in c backend: %d\n", N, data->N);
+        exit(1);
+    }
+
+    if (Nchannel != data->Nchannel)
+    {
+        fprintf(stderr,"Input and output number of channels are different. Nchannel in: %d ; Nchannel in c backend: %d\n", Nchannel, data->Nchannel);
+        exit(1);
+    }
+
+    for(int i=0; i<N2; i++)
+    {
+        //printf("OEWFEOWJ: %e %e\n", model->noise->C[0][0][0], model->noise->C[1][1][0]);
+                
+        switch(data->Nchannel)
+        {
+            case 2:
+                data_arr[0 * N2 + i] = data->tdi->A[i] - model->tdi->A[i];
+                data_arr[1 * N2 + i] = data->tdi->E[i] - model->tdi->E[i];
+                break;
+            case 3:
+                data_arr[0 * N2 + i] = data->tdi->X[i] - model->tdi->X[i];
+                data_arr[1 * N2 + i] = data->tdi->Y[i] - model->tdi->Y[i];
+                data_arr[2 * N2 + i] = data->tdi->Z[i] - model->tdi->Z[i];
+                break;
+            default:
+                fprintf(stderr,"Unsupported number of channels in gaussian_log_likelihood()\n");
+                exit(1);
+        }
+    }
+}
+
+int get_frequency_domain_data_length(struct Translator *translator)
+{
+    return translator->global_fit->tdi_full->N;
+}
+
+void get_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N)
+{
+    struct UCBData *ucb_data = translator->ucb_data;
+    
+    struct Chain *chain = ucb_data->chain;
+    struct TDI *tdi = translator->global_fit->tdi_full;
+    
+    int N2 = tdi->N*2;
+    if (N != tdi->N)
+    {
+        fprintf(stderr,"Input and output lengths are different. N in: %d ; N in c backend: %d\n", N, tdi->N);
+        exit(1);
+    }
+
+    if (Nchannel != tdi->Nchannel)
+    {
+        fprintf(stderr,"Input and output number of channels are different. Nchannel in: %d ; Nchannel in c backend: %d\n", Nchannel, tdi->Nchannel);
+        exit(1);
+    }
+
+    for(int i=0; i<N2; i++)
+    {
+        //printf("OEWFEOWJ: %e %e\n", model->noise->C[0][0][0], model->noise->C[1][1][0]);
+                
+        switch(tdi->Nchannel)
+        {
+            case 2:
+                data_arr[0 * N2 + i] = tdi->A[i];
+                data_arr[1 * N2 + i] = tdi->E[i];
+                break;
+            case 3:
+                data_arr[0 * N2 + i] = tdi->X[i];
+                data_arr[1 * N2 + i] = tdi->Y[i];
+                data_arr[2 * N2 + i] = tdi->Z[i];
+                break;
+            default:
+                fprintf(stderr,"Unsupported number of channels in gaussian_log_likelihood()\n");
+                exit(1);
+        }
+    }
+}
+
+
+void set_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N)
+{
+    struct UCBData *ucb_data = translator->ucb_data;
+
+    struct Chain *chain = ucb_data->chain;
+    struct TDI *tdi = translator->global_fit->tdi_full;
+    
+    int N2 = tdi->N*2;
+    if (N != tdi->N)
+    {
+        fprintf(stderr,"Input and output lengths are different. N in: %d ; N in c backend: %d\n", N, tdi->N);
+        exit(1);
+    }
+
+    if (Nchannel != tdi->Nchannel)
+    {
+        fprintf(stderr,"Input and output number of channels are different. Nchannel in: %d ; Nchannel in c backend: %d\n", Nchannel, tdi->Nchannel);
+        exit(1);
+    }
+
+    for(int i=0; i<N2; i++)
+    {
+        //printf("OEWFEOWJ: %e %e\n", model->noise->C[0][0][0], model->noise->C[1][1][0]);
+                
+        switch(tdi->Nchannel)
+        {
+            case 2:
+                tdi->A[i] = data_arr[0 * N2 + i];
+                tdi->E[i] = data_arr[1 * N2 + i];
+                break;
+            case 3:
+                tdi->X[i] = data_arr[0 * N2 + i];
+                tdi->Y[i] = data_arr[1 * N2 + i];
+                tdi->Z[i] = data_arr[2 * N2 + i];
+                break;
+            default:
+                fprintf(stderr,"Unsupported number of channels in gaussian_log_likelihood()\n");
+                exit(1);
+        }
+    }
+}
+
+
+void get_psd_in_glass(struct Translator *translator, double *noise_arr, int Nchannel, int N)
+{
+    struct UCBData *ucb_data = translator->ucb_data;
+    
+    struct Chain *chain = ucb_data->chain;
+    struct Noise *noise = translator->global_fit->psd;
+
+    if (N != noise->N)
+    {
+        fprintf(stderr,"Input and output lengths are different. N in: %d ; N in c backend: %d\n", N, noise->N);
+        exit(1);
+    }
+
+    if (Nchannel != noise->Nchannel)
+    {
+        fprintf(stderr,"Input and output number of channels are different. Nchannel in: %d ; Nchannel in c backend: %d\n", Nchannel, noise->Nchannel);
+        exit(1);
+    }
+
+    for(int i=0; i<noise->N; i++)
+    {
+        //printf("OEWFEOWJ: %e %e\n", model->noise->C[0][0][0], model->noise->C[1][1][0]);
+                
+        switch(noise->Nchannel)
+        {
+            case 2:
+                for (int j = 0; j < 2; j += 1)
+                {
+                    noise_arr[j * noise->N + i] = noise->C[j][j][i];
+                }
+                break;
+            case 3:
+                for (int j = 0; j < 3; j += 1)
+                {
+                    for (int k = 0; k < 3; k += 1)
+                    {
+                        noise_arr[(j * 3 + k) * noise->N + i] = noise->C[j][k][i];
+                    }
+                }
+                break;
+            default:
+                fprintf(stderr,"Unsupported number of channels in gaussian_log_likelihood()\n");
+                exit(1);
+        }
+    }
+}
+
+
+void set_psd_in_glass(struct Translator *translator, double *noise_arr, int Nchannel, int N)
+{
+    struct UCBData *ucb_data = translator->ucb_data;
+    
+    struct Chain *chain = ucb_data->chain;
+    struct Noise *noise = translator->global_fit->psd;
+    
+    if (N != noise->N)
+    {
+        fprintf(stderr,"Input and output lengths are different. N in: %d ; N in c backend: %d\n", N, noise->N);
+        exit(1);
+    }
+
+    if (Nchannel != noise->Nchannel)
+    {
+        fprintf(stderr,"Input and output number of channels are different. Nchannel in: %d ; Nchannel in c backend: %d\n", Nchannel, noise->Nchannel);
+        exit(1);
+    }
+
+    for(int i=0; i<noise->N; i++)
+    {
+        //printf("OEWFEOWJ: %e %e\n", model->noise->C[0][0][0], model->noise->C[1][1][0]);
+                
+        switch(noise->Nchannel)
+        {
+            case 2:
+                for (int j = 0; j < 2; j += 1)
+                {
+                    noise->C[j][j][i] = noise_arr[j * noise->N + i];
+                }
+                break;
+            case 3:
+                for (int j = 0; j < 3; j += 1)
+                {
+                    for (int k = 0; k < 3; k += 1)
+                    {
+                        noise->C[j][j][i] = noise_arr[j * noise->N + i];
+                    }
+                }
+                break;
+            default:
+                fprintf(stderr,"Unsupported number of channels in gaussian_log_likelihood()\n");
+                exit(1);
+        }
+    }
+}

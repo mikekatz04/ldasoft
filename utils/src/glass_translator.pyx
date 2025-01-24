@@ -91,7 +91,14 @@ cdef extern from "mixglass.h":
     void run_glass_ucb_step(int step, Translator *translator, int procID, int procID_min, int procID_max);
     void get_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
     void set_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
+    void get_current_cold_chain_glass_residual(Translator *translator, double *data_arr, int Nchannel, int N);
+    void get_psd_in_glass(Translator *translator, double *noise_arr, int Nchannel, int N);
+    void set_psd_in_glass(Translator *translator, double *noise_arr, int Nchannel, int N);
+    void get_main_tdi_data_in_glass(Translator *translator, double *data_arr, int Nchannel, int N);
+    void set_main_tdi_data_in_glass(Translator *translator, double *data_arr, int Nchannel, int N);
 
+    int get_frequency_domain_data_length(Translator *translator);
+    
 cdef void setup_translator(Translator *translator, glass_settings):
 
     translator.verbose = glass_settings.verbose;    #!<`[--verbose; default=FALSE]`: increases file output (all chains, less downsampling, etc.)
@@ -202,6 +209,8 @@ cdef class GlassGlobalFitTranslate:
     cdef int dmax;
     cdef int nparams;
     cdef int NC;
+    cdef int Nchannel;
+    cdef int N;
 
     def __cinit__(self, procID, procID_min, procID_max):
         self.translator = <Translator*>malloc(sizeof(Translator));
@@ -212,6 +221,8 @@ cdef class GlassGlobalFitTranslate:
 
         self.dmax = glass_settings.DMAX
         self.NC = glass_settings.NC
+        self.Nchannel = glass_settings.Nchannel
+        
         setup_translator(self.translator, glass_settings)
         
         self.translator.injFile = <char**>malloc(self.translator.DMAX *sizeof(char *));
@@ -227,8 +238,95 @@ cdef class GlassGlobalFitTranslate:
             free(self.translator.injFile[n]);
         free(self.translator.injFile);
 
+        self.N = get_frequency_domain_data_length(self.translator)
+
     def run_glass_ucb_step(self, step : int):
         run_glass_ucb_step(step, self.translator, self.procID, self.procID_min, self.procID_max);
+
+    def get_main_tdi_data_in_glass(self):
+        # glass uses double storage for complex
+        # we will convert in python
+
+        cdef np.ndarray[np.float64_t, ndim=1] tdi_channels_out = np.zeros((self.Nchannel * self.N * 2,), dtype=np.float64)
+        
+        get_main_tdi_data_in_glass(self.translator, &tdi_channels_out[0], self.Nchannel, self.N);
+
+        output = np.zeros((self.Nchannel, self.N), dtype=complex)
+        output[:] = (
+            tdi_channels_out.reshape(self.Nchannel, 2 * self.N)[:, 0::2]
+            + 1j * tdi_channels_out.reshape(self.Nchannel, 2 * self.N)[:, 1::2]
+        )
+        return output
+
+    def set_main_tdi_data_in_glass(self,
+            tdi,  
+        ):
+
+        assert tdi.shape == (self.Nchannel, self.N)
+        cdef np.ndarray[np.float64_t, ndim=1] tdi_in = np.zeros((self.Nchannel * self.N * 2))
+        
+        tdi_in[0::2] = tdi.real.flatten()
+        tdi_in[1::2] = tdi.imag.flatten()
+        
+        set_main_tdi_data_in_glass(self.translator, &tdi_in[0], self.Nchannel, self.N);
+
+    def get_current_cold_chain_glass_residual(self):
+        # glass uses double storage for complex
+        # we will convert in python
+
+        cdef np.ndarray[np.float64_t, ndim=1] tdi_channels_out = np.zeros((self.Nchannel * self.N * 2,), dtype=np.float64)
+        
+        get_current_cold_chain_glass_residual(self.translator, &tdi_channels_out[0], self.Nchannel, self.N);
+
+        output = np.zeros((self.Nchannel, self.N), dtype=complex)
+        output[:] = (
+            tdi_channels_out.reshape(self.Nchannel, 2 * self.N)[:, 0::2]
+            + 1j * tdi_channels_out.reshape(self.Nchannel, 2 * self.N)[:, 1::2]
+        )
+        return output
+
+    def set_psd_in_glass(self,
+            psd,  
+        ):
+
+        if self.Nchannel == 2:
+            shape = (self.Nchannel, self.N)
+        elif self.Nchannel == 3:
+            shape = (self.Nchannel, self.Nchannel, self.N)
+
+        if not psd.shape == shape:
+            raise ValueError(f"psd must have shape (Nchannel, N) if 2 channel or (Nchannel, Nchannel, N) if 3 channel. Current shape is {psd.shape} with {self.Nchannel}.")
+
+        cdef np.ndarray[np.float64_t, ndim=1] psd_in = np.zeros(np.prod(shape), dtype=np.float64)
+        
+        psd_in[:] = psd.flatten()
+        
+        set_psd_in_glass(self.translator, &psd_in[0], self.Nchannel, self.N);
+
+    def get_psd_in_glass(self):
+        
+        if self.Nchannel == 2:
+            shape = (self.Nchannel, self.N)
+        elif self.Nchannel == 3:
+            shape = (self.Nchannel, self.Nchannel, self.N)
+
+        cdef np.ndarray[np.float64_t, ndim=1] psd_in = np.zeros(np.prod(shape), dtype=np.float64)
+        
+        get_psd_in_glass(self.translator, &psd_in[0], self.Nchannel, self.N);
+        return psd_in.reshape(shape)
+
+    def set_current_glass_params(self,
+            np.ndarray[np.float64_t, ndim=1] params,
+            np.ndarray[np.int32_t, ndim=1] nleaves,
+            np.ndarray[np.float64_t, ndim=1] logl,
+            np.ndarray[np.float64_t, ndim=1] logp,
+            np.ndarray[np.float64_t, ndim=1] betas
+        ):
+
+        assert len(nleaves) == len(logl) == len(logp) == len(betas) == self.NC
+        assert len(params) == self.NC * self.dmax * self.nparams
+
+        set_current_glass_params(self.translator, &params[0], <int*>&nleaves[0], &logl[0], &logp[0], &betas[0], self.NC * self.dmax);
 
     def get_current_glass_params(self):
         cdef np.ndarray[np.float64_t, ndim=1] params = np.zeros((self.NC *self.dmax * self.nparams,), dtype=np.float64)
@@ -246,19 +344,6 @@ cdef class GlassGlobalFitTranslate:
             logp,
             betas
         )
-
-    def set_current_glass_params(self,
-            np.ndarray[np.float64_t, ndim=1] params,
-            np.ndarray[np.int32_t, ndim=1] nleaves,
-            np.ndarray[np.float64_t, ndim=1] logl,
-            np.ndarray[np.float64_t, ndim=1] logp,
-            np.ndarray[np.float64_t, ndim=1] betas
-        ):
-
-        assert len(nleaves) == len(logl) == len(logp) == len(betas) == self.NC
-        assert len(params) == self.NC * self.dmax * self.nparams
-
-        set_current_glass_params(self.translator, &params[0], <int*>&nleaves[0], &logl[0], &logp[0], &betas[0], self.NC * self.dmax);
 
     def __dealloc__(self):
         if self.translator: 

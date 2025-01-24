@@ -186,14 +186,28 @@ class GlassUCBGlobalFitMove(MHMove):
         params[temp_map >= nleaves[:, None]] = this_branch.coords[~this_branch.inds]
         
         self.gf.set_current_glass_params(params.flatten().copy(), nleaves.copy(), logl.copy(), logp.copy(), betas.copy())
+        # TODO: this is temporary
+        self.main_data = self.gf.get_main_tdi_data_in_glass()
+        self.residual = self.gf.get_current_cold_chain_glass_residual()
+        self.psd = self.gf.get_psd_in_glass()
 
     def propose(self, model, state: State) -> state:
         self.set_glass_state_with_state(state)
+
+        # TODO: make data and psd come to from state
+        self.gf.set_main_tdi_data_in_glass(self.main_data)
+        self.gf.set_psd_in_glass(self.psd)
+
         for step in range(self.num_python_steps):
             self.gf.run_glass_ucb_step(step)
         
         new_state = State(state, copy=True)
+        
         self.fill_state_with_glass_state(new_state)
+        self.main_data[:] = self.gf.get_main_tdi_data_in_glass()
+        self.residual[:] = self.gf.get_current_cold_chain_glass_residual()
+        self.psd[:] = self.gf.get_psd_in_glass()
+
         accepted = np.zeros_like(state.log_like, dtype=int)
         self.temperature_control.swaps_accepted = np.zeros(state.betas.shape[0] - 1, dtype=int)
         self.temperature_control.swaps_proposed = np.zeros(state.betas.shape[0] - 1, dtype=int)

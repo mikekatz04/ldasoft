@@ -99,5 +99,11 @@ void clear_ucb_global_fit(struct Translator *translator, int procID, int procID_
 void run_glass_ucb_step(int run_glass_ucb_step, struct Translator *translator, int procID, int procID_min, int procID_max);
 void get_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
 void set_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
+int get_frequency_domain_data_length(struct Translator *translator);
+void get_current_cold_chain_glass_residual(struct Translator *translator, double *data_arr, int Nchannel, int N);
+void get_psd_in_glass(struct Translator *translator, double *noise_arr, int Nchannel, int N);
+void set_psd_in_glass(struct Translator *translator, double *noise_arr, int Nchannel, int N);
+void get_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N);
+void set_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N);
 
 #endif // mix_glass_h
