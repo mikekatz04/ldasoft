@@ -86,8 +86,10 @@ cdef extern from "mixglass.h":
 
 cdef extern from "mixglass.h":
     void glass_wrapper(Translator *translator);
-    void setup_ucb_global_fit(Translator *translator, int procID, int procID_min, int procID_max);
-    void clear_ucb_global_fit(Translator *translator, int procID, int procID_min, int procID_max);
+    void setup_ucb_global_fit_main(Translator *translator, int procID, int procID_min, int procID_max, int nUCB);
+    void clear_ucb_global_fit_main(Translator *translator, int procID, int procID_min, int procID_max);
+    void setup_ucb_global_fit_child(Translator *translator, int procID, int procID_min, int procID_max, int nUCB);
+    void clear_ucb_global_fit_child(Translator *translator, int procID, int procID_min, int procID_max);
     void run_glass_ucb_step(int step, Translator *translator, int procID, int procID_min, int procID_max);
     void get_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
     void set_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
@@ -96,7 +98,8 @@ cdef extern from "mixglass.h":
     void set_psd_in_glass(Translator *translator, double *noise_arr, int Nchannel, int N);
     void get_main_tdi_data_in_glass(Translator *translator, double *data_arr, int Nchannel, int N);
     void set_main_tdi_data_in_glass(Translator *translator, double *data_arr, int Nchannel, int N);
-
+    void mpi_process_runner(int procID, Translator *translator, int procID_min);
+    void mpi_process_send_out(int procID, Translator *translator, int procID_target, int ucb_index);
     int get_frequency_domain_data_length(Translator *translator);
     
 cdef void setup_translator(Translator *translator, glass_settings):
@@ -211,13 +214,17 @@ cdef class GlassGlobalFitTranslate:
     cdef int NC;
     cdef int Nchannel;
     cdef int N;
+    cdef int is_main;
+    cdef int nUCB;
 
-    def __cinit__(self, procID, procID_min, procID_max):
+    def __cinit__(self, procID, procID_min, procID_max, nUCB):
         self.translator = <Translator*>malloc(sizeof(Translator));
         self.procID, self.procID_min, self.procID_max = procID, procID_min, procID_max
         self.nparams = 8;
+        self.is_main = int(procID == procID_min)
+        self.nUCB = nUCB
         
-    def setup_ucb_global_fit(self, glass_settings):
+    def setup_ucb_global_fit_main(self, glass_settings):
 
         self.dmax = glass_settings.DMAX
         self.NC = glass_settings.NC
@@ -232,7 +239,30 @@ cdef class GlassGlobalFitTranslate:
         for n in range(self.translator.NINJ):
             strcpy(self.translator.injFile[n], glass_settings.injFile[n].encode('utf-8'))
         
-        setup_ucb_global_fit(self.translator, self.procID, self.procID_min, self.procID_max);
+        setup_ucb_global_fit_main(self.translator, self.procID, self.procID_min, self.procID_max, self.nUCB);
+
+        for n in range(self.translator.DMAX):
+            free(self.translator.injFile[n]);
+        free(self.translator.injFile);
+
+        self.N = get_frequency_domain_data_length(self.translator)
+
+    def setup_ucb_global_fit_child(self, glass_settings):
+
+        self.dmax = glass_settings.DMAX
+        self.NC = glass_settings.NC
+        self.Nchannel = glass_settings.Nchannel
+        
+        setup_translator(self.translator, glass_settings)
+        
+        self.translator.injFile = <char**>malloc(self.translator.DMAX *sizeof(char *));
+        for n in range(self.translator.DMAX):
+            self.translator.injFile[n] = <char*>malloc(1024*sizeof(char));
+
+        for n in range(self.translator.NINJ):
+            strcpy(self.translator.injFile[n], glass_settings.injFile[n].encode('utf-8'))
+        
+        setup_ucb_global_fit_child(self.translator, self.procID, self.procID_min, self.procID_max, self.nUCB);
 
         for n in range(self.translator.DMAX):
             free(self.translator.injFile[n]);
@@ -347,6 +377,24 @@ cdef class GlassGlobalFitTranslate:
 
     def __dealloc__(self):
         if self.translator: 
-            clear_ucb_global_fit(self.translator, self.procID, self.procID_min, self.procID_max);
+            if self.is_main == 1:  # bool not working for some reason.
+                clear_ucb_global_fit_main(self.translator, self.procID, self.procID_min, self.procID_max);
+            
+            else:
+                clear_ucb_global_fit_child(self.translator, self.procID, self.procID_min, self.procID_max);
+            
             print("freeing translator")
             free(self.translator)
+    def mpi_process_runner(self):
+        mpi_process_runner(self.procID, self.translator, self.procID_min);
+
+    def mpi_process_send_out(self, procID_target, ucb_index):
+        mpi_process_send_out(self.procID, self.translator, procID_target, ucb_index);
+
+    def __reduce__(self):
+        return (rebuild, (self.procID, self.procID_min, self.procID_max,))
+
+def rebuild(procID, procID_min, procID_max):
+    c = GlassGlobalFitTranslate(procID, procID_min, procID_max)
+    return c
+

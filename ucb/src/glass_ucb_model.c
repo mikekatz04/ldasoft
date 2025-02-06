@@ -17,6 +17,7 @@
  *  MA  02111-1307  USA
  */
 
+#include "mpi.h"
 #include <glass_utils.h>
 
 #include "glass_ucb_model.h"

@@ -25,6 +25,7 @@
 struct UCBData
 {
     
+    bool extra_alloc_done;
     int mcmc_step; //!<current step number of UCB sampler
     int status; //!<flag indicating if sampler is still working (0) or finished (1)
     

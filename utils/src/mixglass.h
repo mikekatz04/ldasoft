@@ -90,12 +90,15 @@ struct Translator{
   
     struct GlobalFitData *global_fit;
     struct UCBData *ucb_data;
+    struct UCBData **ucb_data_all;
 };
 
 // inline void run_ucb_mcmc(struct Data *data, struct Orbit *orbit, struct Flags *flags, struct Chain *chain, struct Source *inj);
 void glass_wrapper(struct Translator *translator);
-void setup_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max);
-void clear_ucb_global_fit(struct Translator *translator, int procID, int procID_min, int procID_max);
+void setup_ucb_global_fit_main(struct Translator *translator, int procID, int procID_min, int procID_max, int nUCB);
+void clear_ucb_global_fit_main(struct Translator *translator, int procID, int procID_min, int procID_max);
+void setup_ucb_global_fit_child(struct Translator *translator, int procID, int procID_min, int procID_max, int nUCB);
+void clear_ucb_global_fit_child(struct Translator *translator, int procID, int procID_min, int procID_max);
 void run_glass_ucb_step(int run_glass_ucb_step, struct Translator *translator, int procID, int procID_min, int procID_max);
 void get_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
 void set_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
@@ -105,5 +108,7 @@ void get_psd_in_glass(struct Translator *translator, double *noise_arr, int Ncha
 void set_psd_in_glass(struct Translator *translator, double *noise_arr, int Nchannel, int N);
 void get_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N);
 void set_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N);
+void mpi_process_runner(int procID, struct Translator *translator, int procID_min);
+void mpi_process_send_out(int procID, struct Translator *translator, int procID_target, int ucb_index);
 
 #endif // mix_glass_h

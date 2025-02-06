@@ -14,6 +14,7 @@
 
 void alloc_ucb_data(struct UCBData *ucb_data, int procID)
 {
+    ucb_data->extra_alloc_done = false;
     ucb_data->status  = 0;
     ucb_data->procID  = procID;
     ucb_data->flags   = malloc(sizeof(struct Flags));
@@ -26,6 +27,13 @@ void alloc_ucb_data(struct UCBData *ucb_data, int procID)
 
 void dealloc_ucb_data(struct UCBData *ucb_data)
 {
+    if (ucb_data->extra_alloc_done)
+    {
+        free(ucb_data->proposal);
+        free(ucb_data->model);
+        free(ucb_data->trial);
+        // free_orbit(ucb_data->orbit);
+    }
     free(ucb_data->flags);
     free(ucb_data->orbit);
     free(ucb_data->chain);
@@ -58,12 +66,14 @@ void setup_ucb_data(struct UCBData *ucb_data, struct TDI *tdi_full)
     ucb_data->proposal = malloc(UCB_PROPOSAL_NPROP*sizeof(struct Proposal*));
     ucb_data->model = malloc(sizeof(struct Model*)*chain->NC);
     ucb_data->trial = malloc(sizeof(struct Model*)*chain->NC);
-
+    
     /* Initialize LISA orbit model */
     initialize_orbit(data,orbit,flags);
 
     select_frequency_segment(data, tdi_full);
     
+    ucb_data->extra_alloc_done = true;
+    printf("nchan: %d\n", data->Nchannel);
     /* Load gb catalog cache file for proposals/priors */
     if(flags->catalog)
         UCBLoadCatalogCache(data, flags, catalog);

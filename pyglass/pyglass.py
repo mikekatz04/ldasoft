@@ -22,7 +22,7 @@ class GlassSettings:
     detached    : int =0
     knownSource : int =0
     catalog     : int =0
-    grid        : int =1
+    grid        : int =0
     update      : int =0
     updateCov   : int =0
     match       : int =0
@@ -99,16 +99,36 @@ class GlassSettings:
             setattr(self, key, value)
 
 
+def glass_setup_ucb_rank(comm, curr, main_rank, class_extra_gpus, class_ranks_list):
+    assert comm is not None
+
+    # get current rank and get index into class_ranks_list
+    print(f"INSIDE GB search, RANK: {comm.Get_rank()}")
+    rank = comm.Get_rank()
+    rank_index = class_ranks_list.index(rank)
+    gather_rank = class_ranks_list[0]
+    
+    gb_search_func
+
+
 class GlassUCBGlobalFitMove(MHMove):
 
-    def __init__(self, branch_name: str, glass_settings: GlassSettings, rank: int, min_ucb_rank: int, max_ucb_rank: int, *args, num_python_steps: int=1, **kwargs):
+    def __init__(self, branch_name: str, glass_settings: GlassSettings, rank: int, min_ucb_rank: int, max_ucb_rank: int, *args, num_python_steps: int=1, ranks_needed: int=1, **kwargs):
         super().__init__(*args, **kwargs)
         
         self.branch_name = branch_name
         self.glass_settings = glass_settings
-        self.gf = GlassGlobalFitTranslate(rank, min_ucb_rank, max_ucb_rank)
-        self.gf.setup_ucb_global_fit(glass_settings)
+        self.gf = GlassGlobalFitTranslate(rank, min_ucb_rank, max_ucb_rank, 3)
+        self.gf.setup_ucb_global_fit_main(glass_settings)
         self.num_python_steps = num_python_steps
+        self.ranks_needed = ranks_needed
+
+        # self.main_data = self.gf.get_main_tdi_data_in_glass()
+        # self.residual = self.gf.get_current_cold_chain_glass_residual()
+        # self.psd = self.gf.get_psd_in_glass()
+
+    def get_rank_function(self):
+        return glass_setup_ucb_rank
 
     def get_glass_state_as_eryn_state(self) -> State:
         (
@@ -187,20 +207,17 @@ class GlassUCBGlobalFitMove(MHMove):
         
         self.gf.set_current_glass_params(params.flatten().copy(), nleaves.copy(), logl.copy(), logp.copy(), betas.copy())
         # TODO: this is temporary
-        self.main_data = self.gf.get_main_tdi_data_in_glass()
-        self.residual = self.gf.get_current_cold_chain_glass_residual()
-        self.psd = self.gf.get_psd_in_glass()
-
-    def propose(self, model, state: State) -> state:
+        
+    def propose(self, model, state: State) -> State:
         self.set_glass_state_with_state(state)
 
         # TODO: make data and psd come to from state
-        self.gf.set_main_tdi_data_in_glass(self.main_data)
-        self.gf.set_psd_in_glass(self.psd)
+        # self.gf.set_main_tdi_data_in_glass(self.main_data)
+        # self.gf.set_psd_in_glass(self.psd)
 
         for step in range(self.num_python_steps):
             self.gf.run_glass_ucb_step(step)
-        
+        breakpoint()
         new_state = State(state, copy=True)
         
         self.fill_state_with_glass_state(new_state)
