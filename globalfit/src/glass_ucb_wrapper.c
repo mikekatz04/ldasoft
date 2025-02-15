@@ -279,6 +279,7 @@ int update_ucb_sampler(struct UCBData *ucb_data)
     /* The MCMC loop */
     int numThreads;
     int numSteps = 10;
+    printf("FLAGS: flags->threads: %d\n", flags->threads);
 #pragma omp parallel num_threads(flags->threads)
     {
         //Save individual thread number

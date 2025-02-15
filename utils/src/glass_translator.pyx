@@ -99,7 +99,7 @@ cdef extern from "mixglass.h":
     void get_main_tdi_data_in_glass(Translator *translator, double *data_arr, int Nchannel, int N);
     void set_main_tdi_data_in_glass(Translator *translator, double *data_arr, int Nchannel, int N);
     void mpi_process_runner(int procID, Translator *translator, int procID_min);
-    void mpi_process_send_out(int procID, Translator *translator, int procID_target, int ucb_index);
+    void mpi_process_send_out(int procID, Translator *translator, int procID_min, int next_free_process, int ucb_index);
     int get_frequency_domain_data_length(Translator *translator);
     
 cdef void setup_translator(Translator *translator, glass_settings):
@@ -388,8 +388,8 @@ cdef class GlassGlobalFitTranslate:
     def mpi_process_runner(self):
         mpi_process_runner(self.procID, self.translator, self.procID_min);
 
-    def mpi_process_send_out(self, procID_target, ucb_index):
-        mpi_process_send_out(self.procID, self.translator, procID_target, ucb_index);
+    def mpi_process_send_out(self, procID_target, next_free_process, ucb_index):
+        mpi_process_send_out(self.procID, self.translator, procID_target, next_free_process, ucb_index);
 
     def __reduce__(self):
         return (rebuild, (self.procID, self.procID_min, self.procID_max,))

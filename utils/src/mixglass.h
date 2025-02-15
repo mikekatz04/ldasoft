@@ -91,6 +91,8 @@ struct Translator{
     struct GlobalFitData *global_fit;
     struct UCBData *ucb_data;
     struct UCBData **ucb_data_all;
+
+    int *ucb_index_running;
 };
 
 // inline void run_ucb_mcmc(struct Data *data, struct Orbit *orbit, struct Flags *flags, struct Chain *chain, struct Source *inj);
@@ -109,6 +111,6 @@ void set_psd_in_glass(struct Translator *translator, double *noise_arr, int Ncha
 void get_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N);
 void set_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N);
 void mpi_process_runner(int procID, struct Translator *translator, int procID_min);
-void mpi_process_send_out(int procID, struct Translator *translator, int procID_target, int ucb_index);
+void mpi_process_send_out(int procID, struct Translator *translator, int procID_min, int next_free_process, int ucb_index);
 
 #endif // mix_glass_h

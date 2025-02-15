@@ -402,10 +402,6 @@ void setup_ucb_global_fit_main(struct Translator *translator, int procID, int pr
         /* alias of full TDI data */
         struct TDI *tdi_full = global_fit->tdi_full;
         
-        
-        /* broadcast data to all ucb processes and select frequency segment */
-        // share_data_mix(tdi_full, root, procID, procID_min, procID_max);
-        
         /* set up data for ucb model processes */
         setup_ucb_data(ucb_data, tdi_full);
         
@@ -414,15 +410,9 @@ void setup_ucb_global_fit_main(struct Translator *translator, int procID, int pr
         sprintf(ucb_data->chain->chkptDir,"%scheckpoint",flags->runDir);
         
         initialize_ucb_sampler(ucb_data);
-        printf("CHECK N %d, %d\n", global_fit->psd->N, global_fit->tdi_full->N);
         // copy_noise(ucb_data->data->noise,global_fit->psd);
         // TODO: NEEEEEDDD TOO CHECK THIS
-        printf("%e %e\n", global_fit->psd->C[0][0][100], global_fit->psd->C[1][1][200]);
-        printf("Finished ucb global fit setup\n");
-        printf("CHECK nchan %d, %d\n", global_fit->tdi_full->Nchannel, ucb_data->data->Nchannel);
-
     }
-    printf("\n\n\nFINISH SETUP\n\n\n");
 }
 
 void setup_ucb_global_fit_child(struct Translator *translator, int procID, int procID_min, int procID_max, int nUCB)
@@ -528,41 +518,183 @@ void setup_ucb_global_fit_child(struct Translator *translator, int procID, int p
     sprintf(ucb_data->chain->chkptDir,"%scheckpoint",flags->runDir);
     
     initialize_ucb_sampler(ucb_data);
-    printf("CHECK N %d, %d\n", global_fit->psd->N, global_fit->tdi_full->N);
     // copy_noise(ucb_data->data->noise,global_fit->psd);
     // TODO: NEEEEEDDD TOO CHECK THIS
-    printf("%e %e\n", global_fit->psd->C[0][0][100], global_fit->psd->C[1][1][200]);
-    printf("Finished ucb global fit setup\n");
-    printf("CHECK nchan %d, %d\n", global_fit->tdi_full->Nchannel, ucb_data->data->Nchannel);
 }
 
-void end_mpi_processes(int procID, struct Translator *translator, int procID_target)
+// void clear_mpi_process(int procID, struct Translator *translator, int procID_target)
+// {
+//     int indicator = -1;
+//     int procID_tmp = 0;
+//     int action_type = 0;
+//     int ucb_index_receive = 0;
+//     MPI_Status status;
+//     int ready = -1;
+//     MPI_Recv(&procID_tmp, 1, MPI_INT, procID_target, 33, MPI_COMM_WORLD, &status);
+//     MPI_Recv(&procID_tmp, 1, MPI_INT, procID_target, 1, MPI_COMM_WORLD, &status);
+//     printf("CHECK1\n");
+    
+//     if (procID_target != procID_tmp)
+//     {
+//         fprintf(stderr, "Target proc and received proc must be the same. \n");
+//         exit(-1);
+//     }
+//     printf("CHECK2\n");
+//     MPI_Recv(&action_type, 1, MPI_INT, procID_target, 1, MPI_COMM_WORLD, &status);
+    
+//     printf("CHECK3 %d\n", action_type);
+    
+//     if (action_type != 2)
+//     {
+//         fprintf(stderr, "Action type not correct. \n");
+//         exit(-1);
+//     }
+//     printf("CHECK4\n");
+    
+//     MPI_Send(&indicator, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
+//     printf("CHECK5\n");
+    
+//     MPI_Recv(&ucb_index_receive, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD, &status);
+//     printf("CHECK6\n");
+    
+//     mpi_process_runner_inner(procID, translator->ucb_data_all[ucb_index_receive], translator->global_fit, procID_target, false);
+// }
+
+
+void end_mpi_process(int procID, struct Translator *translator, int procID_target)
 {
     int indicator = -1;
-    printf("end indicator");
-    MPI_Send(&indicator, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
+    int procID_tmp = 0;
+    int action_type = 0;
+    int ucb_index_receive = 0;
+    MPI_Status status;
+    MPI_Recv(&procID_tmp, 1, MPI_INT, procID_target, 1, MPI_COMM_WORLD, &status);
+    if (procID_target != procID_tmp)
+    {
+        fprintf(stderr, "Target proc and received proc must be the same. \n");
+        exit(-1);
+    }
+    MPI_Recv(&action_type, 1, MPI_INT, procID_target, 1, MPI_COMM_WORLD, &status);
     
+    if (action_type != 1)
+    {
+        fprintf(stderr, "Action type not correct. \n");
+        exit(-1);
+    }
+    printf("end indicator send %d\n", procID_target);
+    indicator = -1;
+    MPI_Send(&indicator, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
 }
+
+bool check_all_full(int *ucb_index_running, int nprocs)
+{
+    bool is_full = true;
+    for (int i = 0; i < nprocs; i += 1)
+    {
+        if (ucb_index_running[i] == -1)
+        {
+            is_full = false;
+            break;
+        }
+    }
+    return is_full;
+}
+
+bool check_all_empty(int *ucb_index_running, int nprocs)
+{
+    bool is_empty = true;
+    for (int i = 0; i < nprocs; i += 1)
+    {
+        if (ucb_index_running[i] != -1)
+        {
+            is_empty = false;
+            break;
+        }
+    }
+    return is_empty;
+}
+
+int get_next_free_process(int *ucb_index_running, int nprocs)
+{
+    int next_free_process = -1;
+    for (int i = 0; i < nprocs; i += 1)
+    {
+        if (ucb_index_running[i] == -1)
+        {
+            next_free_process = i;
+            break;
+        }
+    }
+    return next_free_process;
+}
+
 void run_glass_ucb_step(int step, struct Translator *translator, int procID, int procID_min, int procID_max)
 {
 
+    int root = procID_min;
+    int nprocs_extra = procID_max - procID_min; // +1 -1 there
+    
     struct GlobalFitData *global_fit = translator->global_fit;
     struct UCBData       *ucb_data = translator->ucb_data;
     int VGB_Flag = 0;
     int MBH_Flag = 0;
     int UCB_Flag = 1;
-    printf("BEFORE SEND\n");
-    for (int i = 0; i < translator->global_fit->nUCB; i += 1)
+    bool all_full = false;
+    bool all_empty = false;
+    int recv_indicator;
+    int next_free_process;
+    MPI_Status status;
+    if (nprocs_extra > 0)
     {
-        mpi_process_send_out(procID, translator, 1, i);
-    }
-    end_mpi_processes(procID, translator, 1);
-    printf("AFTER SEND\n");
-    exit(0);
-    run_ucb_update(procID, global_fit, ucb_data, UCB_Flag, VGB_Flag, MBH_Flag);
+        for (int base = 0; base < 2; base += 1)
+        {
+            translator->ucb_index_running = (int*) malloc(nprocs_extra * sizeof(int));
+            for (int i = 0; i < nprocs_extra; i += 1) translator->ucb_index_running[i] = -1;
+            for (int i = base; i < translator->global_fit->nUCB; i += 2)
+            {
+                printf("Start %d look: \n", i);
+                for (int j = 0; j < nprocs_extra; j += 1) printf("%d, ", translator->ucb_index_running[j]);
+                printf(".\n");
+                all_full = check_all_full(translator->ucb_index_running, nprocs_extra);
+                if (all_full)
+                {
+                    // remove next that is ready
+                    printf("to clear\n");
+                    clear_mpi_process(procID, translator);
+                    all_full = check_all_full(translator->ucb_index_running, nprocs_extra);
+                    if (all_full)
+                    {
+                        fprintf(stderr, "all_full issue\n");
+                        exit(-1);
+                    }
+                }
+                next_free_process = get_next_free_process(translator->ucb_index_running, nprocs_extra);
+                printf("Next free process %d: \n", next_free_process);
+                mpi_process_send_out(procID, translator, procID_min, next_free_process, i); // next_free_process starts at 0
+            }
+            printf("pre end look: \n");
+            for (int j = 0; j < nprocs_extra; j += 1) printf("%d, ", translator->ucb_index_running[j]);
+            printf(".\n");
+            while(!check_all_empty(translator->ucb_index_running, nprocs_extra))
+            {
+                clear_mpi_process(procID, translator);
+            }
+            printf("end look: \n");
+            for (int j = 0; j < nprocs_extra; j += 1) printf("%d, ", translator->ucb_index_running[j]);
+            printf(".\n");
 
-    if (step % 100 == 0)
-        printf("step: %d, nmax: %d, neff: %d,  nlive: %d, logL: %e\n", step, ucb_data->model[0]->Nmax, ucb_data->model[0]->Neff, ucb_data->model[0]->Nlive, ucb_data->model[0]->logL);
+            // REBUILD GLOBAL DATA AND MOVE PARAMETERS
+        }  
+        
+        free(translator->ucb_index_running);
+    }
+    else
+    {
+        exit(0);
+    }
+
+    // if (step % 100 == 0)
+    //     printf("step: %d, nmax: %d, neff: %d,  nlive: %d, logL: %e\n", step, ucb_data->model[0]->Nmax, ucb_data->model[0]->Neff, ucb_data->model[0]->Nlive, ucb_data->model[0]->logL);
 }
 
 void get_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double* betas, int array_length)
@@ -932,59 +1064,194 @@ void mpi_recv_chain(struct Chain *chain, int source_rank)
     MPI_Recv(&chain->logLmax, 1, MPI_DOUBLE, source_rank, 0, MPI_COMM_WORLD, &status);
     
 }
-
-void mpi_process_send_out(int procID, struct Translator *translator, int procID_target, int ucb_index)
+void mpi_send_all_info(int procID, struct UCBData *ucb_data, struct GlobalFitData *global_fit, int procID_target, int ucb_index, bool send_global_fit)
 {
-    int indicator = 1;
-    MPI_Send(&indicator, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
-        
-    struct UCBData *ucb_data = translator->ucb_data_all[ucb_index];
     for (int i = 0; i < ucb_data->chain->NC; i += 1)
     {
         mpi_send_model(ucb_data->model[i], procID_target);
-        printf("finish send source %d\n", i);
+        //printf("finish send source %d\n", i);
     }
     mpi_send_chain(ucb_data->chain, procID_target);
     mpi_send_data(ucb_data->data, procID_target);
-    mpi_send_global_fit(translator->global_fit, procID_target);
-    printf("FInISH everything!!!! send\n");
+    if (send_global_fit)
+    {
+        mpi_send_global_fit(global_fit, procID_target);
+    }
 }
 
-void mpi_process_runner_inner(int procID, struct Translator *translator, int source_rank)
+// void mpi_process_send_out(int procID, struct Translator *translator, int procID_target, int ucb_index)
+// {
+//     MPI_Status status;
+//     int indicator = 1;
+//     int action_type = -1;
+//     int ucb_index_receive = 0;
+//     // int procID_tmp = 0; 
+    
+//     // adjust procID_target
+//     MPI_Recv(&procID_target, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
+//     MPI_Recv(&action_type, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD, &status);
+//     printf("recv1 %d\n", action_type);
+//     if (action_type == 2)
+//     {
+//         /// THIS SHOULD WORK, JUST NEED TO ADD INFORMATION ABOUT
+//         /// UCB_INDEX GOING BACK AND FORTH, 
+//         /// CLEARING OUT WHEN FREEING THE LAST PROCESSES.
+
+//         MPI_Send(&indicator, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
+//         MPI_Recv(&ucb_index_receive, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD, &status);
+//         mpi_process_runner_inner(procID, translator->ucb_data_all[ucb_index_receive], translator->global_fit, procID_target, false);
+//         printf("recv2 %d\n", action_type);
+    
+//         MPI_Recv(&procID_target, 1, MPI_INT, procID_target, 1, MPI_COMM_WORLD, &status);
+        
+//         MPI_Recv(&action_type, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD, &status);
+//         printf("recv3 %d\n", action_type);
+    
+//         if (action_type != 1)
+//         {
+//             fprintf(stderr, "Action type not correct. \n");
+//             exit(-1);
+//         }
+//     }
+//     MPI_Send(&indicator, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
+//     MPI_Send(&ucb_index, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
+//     mpi_send_all_info(procID, translator->ucb_data_all[ucb_index], translator->global_fit, procID_target, ucb_index, true);  
+// }
+
+
+
+void mpi_process_runner_inner(int procID, struct UCBData *ucb_data, struct GlobalFitData *global_fit, int source_rank, bool send_global_fit)
 {
-    for (int i = 0; i < translator->ucb_data->chain->NC; i += 1)
+    for (int i = 0; i < ucb_data->chain->NC; i += 1)
     {
-        mpi_recv_model(translator->ucb_data->model[i], source_rank);
-        printf("finish receive source %d\n", i);
+        mpi_recv_model(ucb_data->model[i], source_rank);
+        //printf("finish receive source %d\n", i);
     }
-    mpi_recv_chain(translator->ucb_data->chain, source_rank);
-    mpi_recv_data(translator->ucb_data->data, source_rank);
-    mpi_recv_global_fit(translator->global_fit, source_rank);
-    printf("FInISH everything!!!! send\n");
+    mpi_recv_chain(ucb_data->chain, source_rank);
+    mpi_recv_data(ucb_data->data, source_rank);
+    if (send_global_fit)
+    {
+        mpi_recv_global_fit(global_fit, source_rank);
+    }
+    //printf("FInISH everything!!!! send\n");
     
 }
+
+// void mpi_process_runner(int procID, struct Translator *translator, int procID_min)
+// {
+//     bool run = true;
+//     int ucb_index_now = 0;
+//     int indicator = 0;
+//     int send_indicator = 0;
+//     MPI_Status status;
+//     while (run)
+//     {
+//         printf("sending for info (%d)!\n", procID);
+//         MPI_Send(&procID, 1, MPI_INT, procID_min, 1, MPI_COMM_WORLD);
+//         send_indicator = 1;
+//         MPI_Send(&send_indicator, 1, MPI_INT, procID_min, 0, MPI_COMM_WORLD);
+//         printf("Waiting for mPI send (%d)!\n", procID);
+//         MPI_Recv(&indicator, 1, MPI_INT, procID_min, 0, MPI_COMM_WORLD, &status);
+//         printf("(%d) Received indicator: %d!\n", procID, indicator);
+        
+//         if (indicator == 1)
+//         {
+//             MPI_Recv(&ucb_index_now, 1, MPI_INT, procID_min, 0, MPI_COMM_WORLD, &status);
+//             mpi_process_runner_inner(procID, translator->ucb_data, translator->global_fit, procID_min, true);
+            
+//             printf("STARTING UCB UPDATE %d %d \n", procID, ucb_index_now);
+//             run_ucb_update(procID, translator->global_fit, translator->ucb_data, 1, 0, 0);
+//             printf("ENDING UCB UPDATE %d %d \n", procID, ucb_index_now);
+            
+//             MPI_Send(&procID, 1, MPI_INT, procID_min, 1, MPI_COMM_WORLD);
+//             printf("TMP2 %d %d \n", procID, ucb_index_now);
+            
+//             send_indicator = 2;
+//             MPI_Send(&send_indicator, 1, MPI_INT, procID_min, 0, MPI_COMM_WORLD);
+//             printf("TMP3 %d %d \n", procID, ucb_index_now);
+            
+//             MPI_Recv(&indicator, 1, MPI_INT, procID_min, 0, MPI_COMM_WORLD, &status);
+//             printf("TMP4 %d %d \n", procID, ucb_index_now);
+            
+//             MPI_Send(&ucb_index_now, 1, MPI_INT, procID_min, 0, MPI_COMM_WORLD);
+//             printf("TMP6 %d %d \n", procID, ucb_index_now);
+            
+//             mpi_send_all_info(procID, translator->ucb_data, translator->global_fit, procID_min, ucb_index_now, false);
+//         }
+//         else if (indicator == -1)
+//         {
+//             run = false;
+//         }
+//     }
+//     printf("end indicator process %d\n", procID);
+// }
+
+
+
+void mpi_process_send_out(int procID, struct Translator *translator, int procID_min, int next_free_process, int ucb_index)
+{
+    MPI_Status status;
+    int indicator = 1;
+    int action_type = -1;
+    int procID_target = procID_min + 1 + next_free_process; // next_free_process starts at 0
+    // int procID_tmp = 0; 
+    MPI_Send(&indicator, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
+    MPI_Send(&ucb_index, 1, MPI_INT, procID_target, 0, MPI_COMM_WORLD);
+    mpi_send_all_info(procID, translator->ucb_data_all[ucb_index], translator->global_fit, procID_target, ucb_index, true);  
+    
+    // update holder
+    translator->ucb_index_running[next_free_process] = ucb_index;
+}
+
+
+void clear_mpi_process(int procID_min, struct Translator *translator)
+{
+    int indicator = -1;
+    int procID_tmp = 0;
+    int action_type = 0;
+    int ucb_index_receive = 0;
+    MPI_Status status;
+    int ready = -1;
+    MPI_Recv(&procID_tmp, 1, MPI_INT, MPI_ANY_SOURCE, 33, MPI_COMM_WORLD, &status);
+    MPI_Recv(&ucb_index_receive, 1, MPI_INT, procID_tmp, 44, MPI_COMM_WORLD, &status);
+    int process_index = procID_tmp - (procID_min + 1);  // process_index starts at 0
+    int check_ucb_index = translator->ucb_index_running[process_index];
+    if (check_ucb_index != ucb_index_receive)
+    {
+        fprintf(stderr, "Ucb indexes not matching, %d vs. %d.\n", check_ucb_index, ucb_index_receive);
+        exit(-1);
+    }
+    mpi_process_runner_inner(procID_min, translator->ucb_data_all[ucb_index_receive], translator->global_fit, procID_tmp, false);
+    translator->ucb_index_running[process_index] = -1;
+}
+
 
 void mpi_process_runner(int procID, struct Translator *translator, int procID_min)
 {
     bool run = true;
+    int ucb_index_now = 0;
     int indicator = 0;
+    int send_indicator = 0;
     MPI_Status status;
     while (run)
-    {
-        printf("Waiting for mPI send (%d)!\n", procID);
+    {    
         MPI_Recv(&indicator, 1, MPI_INT, procID_min, 0, MPI_COMM_WORLD, &status);
-        printf("Received indicator: %d!\n", indicator);
-    
+        
         if (indicator == 1)
         {
-            mpi_process_runner_inner(procID, translator, procID_min);
+            MPI_Recv(&ucb_index_now, 1, MPI_INT, procID_min, 0, MPI_COMM_WORLD, &status);
+            mpi_process_runner_inner(procID, translator->ucb_data, translator->global_fit, procID_min, true);
+            run_ucb_update(procID, translator->global_fit, translator->ucb_data, 1, 0, 0);
+            MPI_Send(&procID, 1, MPI_INT, procID_min, 33, MPI_COMM_WORLD);
+            MPI_Send(&ucb_index_now, 1, MPI_INT, procID_min, 44, MPI_COMM_WORLD);
+            mpi_send_all_info(procID, translator->ucb_data, translator->global_fit, procID_min, ucb_index_now, false);
         }
         else if (indicator == -1)
         {
             run = false;
         }
     }
-    printf("OUT\n");
+    printf("end indicator process %d\n", procID);
 }
 
 void mpi_recv_global_fit(struct GlobalFitData *global_fit, int source_rank)
@@ -1340,7 +1607,6 @@ void mpi_recv_model(struct Model *model, int source_rank)
 {
     MPI_Status status;
     //Source parameters
-    printf("REC2 from: %d\n", source_rank);
     MPI_Recv(&model->Nmax, 1, MPI_INT, source_rank, 0, MPI_COMM_WORLD, &status);
     MPI_Recv(&model->Neff, 1, MPI_INT, source_rank, 0, MPI_COMM_WORLD, &status);
     MPI_Recv(&model->Nlive, 1, MPI_INT, source_rank, 0, MPI_COMM_WORLD, &status);
@@ -1349,7 +1615,6 @@ void mpi_recv_model(struct Model *model, int source_rank)
     for(int n=0; n<model->Nlive; n++)
     {
         mpi_recv_source(model->source[n], source_rank);
-        printf("SOURCE %d recv\n", n);
     }
 
     mpi_recv_noise(model->noise, source_rank);
@@ -1372,7 +1637,6 @@ void mpi_recv_model(struct Model *model, int source_rank)
     MPI_Recv(&model->logL, 1, MPI_DOUBLE, source_rank, 0, MPI_COMM_WORLD, &status);
     MPI_Recv(&model->logLnorm, 1, MPI_DOUBLE, source_rank, 0, MPI_COMM_WORLD, &status);
     
-    printf("back: %e %e %e\n", model->residual->Z[0], model->logL, model->logLnorm);
 }
 
 void mpi_send_model(struct Model *model, int receiver)
@@ -1386,7 +1650,6 @@ void mpi_send_model(struct Model *model, int receiver)
     for(int n=0; n<model->Nlive; n++)
     {
         mpi_send_source(model->source[n], receiver);
-        printf("SOURCE %d send\n", n);
     }
     //
     

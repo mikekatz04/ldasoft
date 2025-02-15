@@ -592,19 +592,15 @@ void run_ucb_update(int procID, struct GlobalFitData *global_fit, struct UCBData
     
     int cycle = (int)round(global_fit->max_block_time/ucb_data->cpu_time);
 
-    exchange_ucb_source_params(ucb_data);
-    if(procID%2==0)
-    {
-        for(int i=0; i<((cycle > 1 ) ? cycle : 1); i++)
-            ucb_data->status = update_ucb_sampler(ucb_data);
-    }
-    
-    exchange_ucb_source_params(ucb_data);
-    if(procID%2!=0)
-    {
-        for(int i=0; i<((cycle > 1 ) ? cycle : 1); i++)
-            ucb_data->status = update_ucb_sampler(ucb_data);
-    }
+    for(int i=0; i<((cycle > 1 ) ? cycle : 1); i++)
+        ucb_data->status = update_ucb_sampler(ucb_data);
+
+    // exchange_ucb_source_params(ucb_data);
+    // if(procID%2!=0)
+    // {
+    //     for(int i=0; i<((cycle > 1 ) ? cycle : 1); i++)
+    //         ucb_data->status = update_ucb_sampler(ucb_data);
+    // }
     
     global_fit->block_time = ucb_data->cpu_time;
 }

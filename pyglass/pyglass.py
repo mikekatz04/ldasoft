@@ -118,7 +118,7 @@ class GlassUCBGlobalFitMove(MHMove):
         
         self.branch_name = branch_name
         self.glass_settings = glass_settings
-        self.gf = GlassGlobalFitTranslate(rank, min_ucb_rank, max_ucb_rank, 3)
+        self.gf = GlassGlobalFitTranslate(rank, min_ucb_rank, max_ucb_rank, 12)
         self.gf.setup_ucb_global_fit_main(glass_settings)
         self.num_python_steps = num_python_steps
         self.ranks_needed = ranks_needed
@@ -217,6 +217,8 @@ class GlassUCBGlobalFitMove(MHMove):
 
         for step in range(self.num_python_steps):
             self.gf.run_glass_ucb_step(step)
+            print(f"\n\n\n\n STEP {step} complete.\n\n\n")
+
         breakpoint()
         new_state = State(state, copy=True)
         
