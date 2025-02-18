@@ -91,8 +91,8 @@ cdef extern from "mixglass.h":
     void setup_ucb_global_fit_child(Translator *translator, int procID, int procID_min, int procID_max, int nUCB);
     void clear_ucb_global_fit_child(Translator *translator, int procID, int procID_min, int procID_max);
     void run_glass_ucb_step(int step, Translator *translator, int procID, int procID_min, int procID_max);
-    void get_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
-    void set_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length);
+    void get_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length, int ucb_index);
+    void set_current_glass_params(Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length, int ucb_index);
     void get_current_cold_chain_glass_residual(Translator *translator, double *data_arr, int Nchannel, int N);
     void get_psd_in_glass(Translator *translator, double *noise_arr, int Nchannel, int N);
     void set_psd_in_glass(Translator *translator, double *noise_arr, int Nchannel, int N);
@@ -101,6 +101,7 @@ cdef extern from "mixglass.h":
     void mpi_process_runner(int procID, Translator *translator, int procID_min);
     void mpi_process_send_out(int procID, Translator *translator, int procID_min, int next_free_process, int ucb_index);
     int get_frequency_domain_data_length(Translator *translator);
+    double get_frequency_domain_data_df(Translator *translator);
     
 cdef void setup_translator(Translator *translator, glass_settings):
 
@@ -216,6 +217,7 @@ cdef class GlassGlobalFitTranslate:
     cdef int N;
     cdef int is_main;
     cdef int nUCB;
+    cdef double df;
 
     def __cinit__(self, procID, procID_min, procID_max, nUCB):
         self.translator = <Translator*>malloc(sizeof(Translator));
@@ -246,7 +248,16 @@ cdef class GlassGlobalFitTranslate:
         free(self.translator.injFile);
 
         self.N = get_frequency_domain_data_length(self.translator)
+        self.df = get_frequency_domain_data_df(self.translator)
 
+    @property
+    def df(self):
+        return self.df
+    
+    @property
+    def N(self):
+        return self.N
+        
     def setup_ucb_global_fit_child(self, glass_settings):
 
         self.dmax = glass_settings.DMAX
@@ -269,6 +280,7 @@ cdef class GlassGlobalFitTranslate:
         free(self.translator.injFile);
 
         self.N = get_frequency_domain_data_length(self.translator)
+        self.df = get_frequency_domain_data_df(self.translator)
 
     def run_glass_ucb_step(self, step : int):
         run_glass_ucb_step(step, self.translator, self.procID, self.procID_min, self.procID_max);
@@ -346,6 +358,7 @@ cdef class GlassGlobalFitTranslate:
         return psd_in.reshape(shape)
 
     def set_current_glass_params(self,
+            ucb_index,
             np.ndarray[np.float64_t, ndim=1] params,
             np.ndarray[np.int32_t, ndim=1] nleaves,
             np.ndarray[np.float64_t, ndim=1] logl,
@@ -353,19 +366,25 @@ cdef class GlassGlobalFitTranslate:
             np.ndarray[np.float64_t, ndim=1] betas
         ):
 
+        assert ucb_index >= 0
+        assert ucb_index < self.nUCB
+        
         assert len(nleaves) == len(logl) == len(logp) == len(betas) == self.NC
         assert len(params) == self.NC * self.dmax * self.nparams
 
-        set_current_glass_params(self.translator, &params[0], <int*>&nleaves[0], &logl[0], &logp[0], &betas[0], self.NC * self.dmax);
+        set_current_glass_params(self.translator, &params[0], <int*>&nleaves[0], &logl[0], &logp[0], &betas[0], self.NC * self.dmax, ucb_index);
 
-    def get_current_glass_params(self):
+    def get_current_glass_params(self, ucb_index):
         cdef np.ndarray[np.float64_t, ndim=1] params = np.zeros((self.NC *self.dmax * self.nparams,), dtype=np.float64)
         cdef np.ndarray[np.int32_t, ndim=1] nleaves = np.zeros((self.NC,), dtype=np.int32)
         cdef np.ndarray[np.float64_t, ndim=1] logl = np.zeros((self.NC,), dtype=np.float64)
         cdef np.ndarray[np.float64_t, ndim=1] logp = np.zeros((self.NC,), dtype=np.float64)
         cdef np.ndarray[np.float64_t, ndim=1] betas = np.zeros((self.NC,), dtype=np.float64)
         
-        get_current_glass_params(self.translator, &params[0], <int*>&nleaves[0], &logl[0], &logp[0], &betas[0], self.NC * self.dmax);
+        assert ucb_index >= 0
+        assert ucb_index < self.nUCB
+
+        get_current_glass_params(self.translator, &params[0], <int*>&nleaves[0], &logl[0], &logp[0], &betas[0], self.NC * self.dmax, ucb_index);
 
         return (
             params.reshape(self.NC, self.dmax, self.nparams),

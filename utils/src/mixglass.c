@@ -684,22 +684,26 @@ void run_glass_ucb_step(int step, struct Translator *translator, int procID, int
             printf(".\n");
 
             // REBUILD GLOBAL DATA AND MOVE PARAMETERS
+            
         }  
         
         free(translator->ucb_index_running);
     }
     else
     {
-        exit(0);
+        for (int i = 0; i < translator->global_fit->nUCB; i += 1)
+        {
+            run_ucb_update(procID, translator->global_fit, translator->ucb_data_all[i], 1, 0, 0);
+        }    
     }
 
     // if (step % 100 == 0)
     //     printf("step: %d, nmax: %d, neff: %d,  nlive: %d, logL: %e\n", step, ucb_data->model[0]->Nmax, ucb_data->model[0]->Neff, ucb_data->model[0]->Nlive, ucb_data->model[0]->logL);
 }
 
-void get_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double* betas, int array_length)
+void get_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double* betas, int array_length, int ucb_index)
 {
-    struct UCBData *ucb_data = translator->ucb_data_all[0];
+    struct UCBData *ucb_data = translator->ucb_data_all[ucb_index];
     struct Chain *chain = ucb_data->chain;
     struct Model **model = ucb_data->model;
     if (array_length != chain->NC * translator->DMAX)
@@ -744,9 +748,9 @@ void get_current_glass_params(struct Translator *translator, double *params, int
 }
     
 
-void set_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length)
+void set_current_glass_params(struct Translator *translator, double *params, int *nleaves, double *logl, double *logp, double *betas, int array_length, int ucb_index)
 {
-    struct UCBData *ucb_data = translator->ucb_data_all[0];
+    struct UCBData *ucb_data = translator->ucb_data_all[ucb_index];
     struct Chain *chain = ucb_data->chain;
     struct Model **model = ucb_data->model;
 
@@ -827,11 +831,14 @@ int get_frequency_domain_data_length(struct Translator *translator)
     return translator->global_fit->tdi_full->N;
 }
 
+double get_frequency_domain_data_df(struct Translator *translator)
+{
+    return translator->global_fit->tdi_full->delta;
+}
+
 void get_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N)
 {
-    struct UCBData *ucb_data = translator->ucb_data;
-    
-    struct Chain *chain = ucb_data->chain;
+
     struct TDI *tdi = translator->global_fit->tdi_full;
     
     int N2 = tdi->N*2;
@@ -872,9 +879,6 @@ void get_main_tdi_data_in_glass(struct Translator *translator, double *data_arr,
 
 void set_main_tdi_data_in_glass(struct Translator *translator, double *data_arr, int Nchannel, int N)
 {
-    struct UCBData *ucb_data = translator->ucb_data;
-
-    struct Chain *chain = ucb_data->chain;
     struct TDI *tdi = translator->global_fit->tdi_full;
     
     int N2 = tdi->N*2;
@@ -915,9 +919,6 @@ void set_main_tdi_data_in_glass(struct Translator *translator, double *data_arr,
 
 void get_psd_in_glass(struct Translator *translator, double *noise_arr, int Nchannel, int N)
 {
-    struct UCBData *ucb_data = translator->ucb_data;
-    
-    struct Chain *chain = ucb_data->chain;
     struct Noise *noise = translator->global_fit->psd;
 
     if (N != noise->N)
@@ -963,9 +964,6 @@ void get_psd_in_glass(struct Translator *translator, double *noise_arr, int Ncha
 
 void set_psd_in_glass(struct Translator *translator, double *noise_arr, int Nchannel, int N)
 {
-    struct UCBData *ucb_data = translator->ucb_data;
-    
-    struct Chain *chain = ucb_data->chain;
     struct Noise *noise = translator->global_fit->psd;
     
     if (N != noise->N)
